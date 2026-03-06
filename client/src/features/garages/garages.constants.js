@@ -1,0 +1,4 @@
+export const GARAGE_STATUS = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+};
