@@ -14,6 +14,8 @@ import { useEffect, useState, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../src/services/apiClient";
 import { useTheme } from "../../src/hooks/useTheme";
+import { useCart } from "../../src/hooks/useCart";
+// or correct relative path
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const C = {
@@ -60,11 +62,13 @@ function PriceDisplay({
 }
 
 // ─── Service Card ─────────────────────────────────────────────────────────────
-function ServiceCard({ service, index, onPress }) {
+function ServiceCard({ service, onPress, index }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const { addToCart, cartItems } = useCart();
 
+  const isAdded = cartItems.some((item) => item.id === service.id);
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -141,6 +145,24 @@ function ServiceCard({ service, index, onPress }) {
             hasDiscount={hasDiscount}
             discountLabel={discountLabel}
           />
+
+          {/* ✅ ADD TO CART BUTTON */}
+          <TouchableOpacity
+            onPress={() =>
+              addToCart({
+                id: service.id,
+                title: service.name,
+                price: finalPrice,
+                image: service.image || null,
+                source: "service", // ✅ IMPORTANT
+              })
+            }
+            style={[styles.addBtn, isAdded && styles.addedBtn]}
+          >
+            <Text style={styles.addBtnText}>
+              {isAdded ? "Added" : "Add to Cart"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.arrowWrap}>
@@ -178,6 +200,12 @@ function Section({ section, sectionIndex, router }) {
 export default function ServiceDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { cartItems } = useCart();
+
+  const total = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -289,6 +317,23 @@ export default function ServiceDetailsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      {cartItems.length > 0 && (
+        <View style={styles.cartBar}>
+          <View>
+            <Text style={styles.cartCount}>
+              {cartItems.length} items in cart
+            </Text>
+            <Text style={styles.cartTotal}>₹{total}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.viewCartBtn}
+            onPress={() => router.push("/cart")}
+          >
+            <Text style={styles.viewCartText}>View Cart</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -453,5 +498,58 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: C.green,
+  },
+  addBtn: {
+    marginTop: 8,
+    backgroundColor: "#0062ff",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+
+  addedBtn: {
+    backgroundColor: "#16A34A",
+  },
+
+  addBtnText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  cartBar: {
+    position: "absolute",
+    bottom: 20,
+    left: 16,
+    right: 16,
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    elevation: 10,
+  },
+
+  cartCount: {
+    color: "#fff",
+    fontSize: 12,
+  },
+
+  cartTotal: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  viewCartBtn: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+
+  viewCartText: {
+    fontWeight: "600",
   },
 });

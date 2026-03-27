@@ -18,7 +18,7 @@ export default function HomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [services, setServices] = useState([]);
-  const [selectedVehicleType, setSelectedVehicleType] = useState("CAR");
+  const [selectedVehicleType, setSelectedVehicleType] = useState("Car");
 
   const { user } = useAuth();
   const { openLoginSheet } = useLoginSheet();

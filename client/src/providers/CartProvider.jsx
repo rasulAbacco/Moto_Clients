@@ -22,6 +22,7 @@ export function CartProvider({ children }) {
   const addToCart = (product) => {
     setCartItems((prev) => {
       const existing = prev.find((i) => i.id === product.id);
+
       if (existing) {
         return prev.map((item) =>
           item.id === product.id
@@ -29,7 +30,15 @@ export function CartProvider({ children }) {
             : item,
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+
+      return [
+        ...prev,
+        {
+          ...product,
+          quantity: 1,
+          source: product.source || "store", // ✅ NEW LINE
+        },
+      ];
     });
   };
 

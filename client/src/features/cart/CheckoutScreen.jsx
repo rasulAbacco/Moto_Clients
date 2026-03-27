@@ -88,6 +88,8 @@ export default function CheckoutScreen() {
   const [placing, setPlacing] = useState(false);
 
   const subtotal = getTotal();
+  const hasService = cartItems.some((i) => i.source === "service");
+  const cartType = hasService ? "service" : "store";
   const deliveryFee = subtotal > 499 ? 0 : 49;
   const grandTotal = subtotal + deliveryFee;
   const itemCount = cartItems.reduce((acc, i) => acc + i.quantity, 0);
@@ -341,7 +343,7 @@ export default function CheckoutScreen() {
             <Text
               style={[styles.priceLabel, { color: theme.colors.textSecondary }]}
             >
-              Delivery Fee
+              {cartType === "service" ? "Service Charge" : "Delivery Fee"}
             </Text>
             {deliveryFee === 0 ? (
               <Text style={styles.freeText}>FREE</Text>

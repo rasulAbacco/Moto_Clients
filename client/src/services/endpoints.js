@@ -1,3 +1,4 @@
+//endpoints.js
 export const ENDPOINTS = {
   AUTH: {
     SEND_OTP: "/auth/send-otp",
@@ -12,5 +13,8 @@ export const ENDPOINTS = {
   BOOKINGS: {
     CREATE: "/bookings",
     LIST: "/bookings",
+  },
+  MARKETPLACE: {
+    SERVICES: "/marketplace/services",
   },
 };

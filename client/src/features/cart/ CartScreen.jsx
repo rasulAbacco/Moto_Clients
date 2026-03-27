@@ -7,6 +7,7 @@ import {
   Image,
   Platform,
 } from "react-native";
+import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCart } from "../../hooks/useCart";
@@ -14,7 +15,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { useRouter } from "expo-router";
 
 // ── Empty state ───────────────────────────────────────────────────────────────
-function EmptyCart({ theme, router }) {
+function EmptyCart({ theme, router, lastCartType }) {
   return (
     <View style={emptyStyles.wrap}>
       <View
@@ -34,7 +35,13 @@ function EmptyCart({ theme, router }) {
       </Text>
       <TouchableOpacity
         style={[emptyStyles.btn, { backgroundColor: theme.colors.primary }]}
-        onPress={() => router.replace("/(tabs)/gostore")}
+        onPress={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(tabs)/gostore");
+          }
+        }}
         activeOpacity={0.88}
       >
         <Ionicons name="storefront-outline" size={16} color="#fff" />
@@ -77,6 +84,7 @@ const emptyStyles = StyleSheet.create({
 // ── Cart item row ─────────────────────────────────────────────────────────────
 function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
   const subtotal = item.price * item.quantity;
+  
 
   return (
     <View
@@ -236,11 +244,16 @@ export default function CartScreen() {
     useCart();
   const { theme } = useTheme();
   const router = useRouter();
+  const [lastCartType, setLastCartType] = useState("store");
 
   const total = getTotal();
+  const hasService = cartItems.some((i) => i.source === "service");
+  const cartType = hasService ? "service" : "store";
   const itemCount = cartItems.reduce((acc, i) => acc + i.quantity, 0);
-  const deliveryFee = total > 499 ? 0 : 49;
+  const deliveryFee = cartType === "service" ? 0 : total > 499 ? 0 : 49;
   const grandTotal = total + deliveryFee;
+
+  console.log("CART ITEMS:", cartItems);
 
   const handleDeleteItem = (id) => {
     // Remove all qty of this item
@@ -248,6 +261,12 @@ export default function CartScreen() {
     if (!item) return;
     for (let q = 0; q < item.quantity; q++) removeFromCart(id);
   };
+
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      setLastCartType(cartType);
+    }
+  }, [cartItems]);
 
   const renderHeader = () => (
     <View>
@@ -302,7 +321,7 @@ export default function CartScreen() {
     return (
       <View style={styles.footer}>
         {/* Free delivery nudge */}
-        {deliveryFee > 0 && (
+        {cartType === "store" && deliveryFee > 0 && (
           <View
             style={[
               styles.nudgeBanner,
@@ -316,7 +335,7 @@ export default function CartScreen() {
             </Text>
           </View>
         )}
-        {deliveryFee === 0 && (
+        {cartType === "store" && deliveryFee === 0 && (
           <View
             style={[
               styles.nudgeBanner,
@@ -358,37 +377,41 @@ export default function CartScreen() {
             </Text>
           </View>
 
-          <View style={styles.summaryRow}>
-            <Text
-              style={[
-                styles.summaryLabel,
-                { color: theme.colors.textSecondary },
-              ]}
-            >
-              Delivery Fee
-            </Text>
-            {deliveryFee === 0 ? (
-              <View style={styles.freeRow}>
-                <Text
-                  style={[
-                    styles.summaryValue,
-                    {
-                      textDecorationLine: "line-through",
-                      color: theme.colors.textSecondary,
-                      fontSize: 12,
-                    },
-                  ]}
-                >
-                  ₹49
-                </Text>
-                <Text style={styles.freeText}>FREE</Text>
-              </View>
-            ) : (
-              <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
-                ₹{deliveryFee}
+          {cartType === "store" && (
+            <View style={styles.summaryRow}>
+              <Text
+                style={[
+                  styles.summaryLabel,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Delivery Fee
               </Text>
-            )}
-          </View>
+              {deliveryFee === 0 ? (
+                <View style={styles.freeRow}>
+                  <Text
+                    style={[
+                      styles.summaryValue,
+                      {
+                        textDecorationLine: "line-through",
+                        color: theme.colors.textSecondary,
+                        fontSize: 12,
+                      },
+                    ]}
+                  >
+                    ₹49
+                  </Text>
+                  <Text style={styles.freeText}>FREE</Text>
+                </View>
+              ) : (
+                <Text
+                  style={[styles.summaryValue, { color: theme.colors.text }]}
+                >
+                  ₹{deliveryFee}
+                </Text>
+              )}
+            </View>
+          )}
 
           <View
             style={[styles.divider, { backgroundColor: theme.colors.border }]}
@@ -436,7 +459,13 @@ export default function CartScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, !cartItems.length && { flex: 1 }]}
         ListHeaderComponent={renderHeader}
-        ListEmptyComponent={<EmptyCart theme={theme} router={router} />}
+        ListEmptyComponent={
+          <EmptyCart
+            theme={theme}
+            router={router}
+            lastCartType={lastCartType} // ✅ NEW
+          />
+        }
         renderItem={({ item }) => (
           <CartItem
             item={item}
