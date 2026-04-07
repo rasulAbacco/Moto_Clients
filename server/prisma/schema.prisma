@@ -8,11 +8,15 @@ datasource db {
 }
 
 model User {
-  id       String  @id @default(uuid())
-  name     String
-  phone    String  @unique
-  email    String?
-  dob      String?
+  id    String  @id @default(uuid())
+  name  String
+  phone String  @unique
+  email String?
+  dob   String?
+
+  profileImage     Bytes? // ✅ store binary
+  profileImageType String? // ✅ image/jpeg, image/png
+
   role     Role    @default(USER)
   isActive Boolean @default(true)
 

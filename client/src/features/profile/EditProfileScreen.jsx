@@ -1,5 +1,5 @@
 // app/edit-profile.jsx
-import { useContext, useState } from "react";
+import { useContext, useState,useEffect} from "react";
 import {
   View,
   Text,
@@ -11,12 +11,16 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Alert,
+  Image
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../../providers/AuthProvider";
 import { useTheme } from "../../hooks/useTheme";
+import api from "../../services/apiClient.js";
+
 
 // ─────────────────────────────────────────────────────────
 // ✅ Moved OUTSIDE the screen component so they are never
@@ -107,11 +111,14 @@ const SectionCard = ({ title, icon, children, theme }) => (
 // ─────────────────────────────────────────────────────────
 
 export default function EditProfileScreen() {
-  const { user, updateProfile } = useContext(AuthContext);
+  const { user, updateProfile, fetchProfile, updateVehicle } = useContext(AuthContext);
   const { theme } = useTheme();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-
+  const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(0);
+  const vehicles = user?.vehicles || [];
+  const selectedVehicle = vehicles[selectedVehicleIndex] || null;
+  const [profileImage, setProfileImage] = useState(null);
   // Personal
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -125,37 +132,98 @@ export default function EditProfileScreen() {
   const [country, setCountry] = useState(user?.address?.country || "");
 
   // Registration
-  const [registrationNumber, setRegistrationNumber] = useState(
-    user?.registrationNumber || "",
-  );
-  const [company, setCompany] = useState(user?.company || "");
-  const [taxNumber, setTaxNumber] = useState(user?.taxNumber || "");
+const [registrationNumber, setRegistrationNumber] = useState(
+  selectedVehicle?.registration || user?.registrationNumber || ""
+);
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await updateProfile({
-        name,
-        email,
-        dob,
-        address: { street, city, state, postalCode, country },
-        registrationNumber,
-        company,
-        taxNumber,
+    const [vehicleType, setVehicleType] = useState(
+      selectedVehicle?.vehicleType?.name || ""
+    );
+    const [brand, setBrand] = useState(
+      selectedVehicle?.model?.brand?.name || ""
+    );
+    const [model, setModel] = useState(
+      selectedVehicle?.model?.name || ""
+    );
+    const [modelYear, setModelYear] = useState(
+      selectedVehicle?.modelYear?.year?.toString() || ""
+    );
+     const pickImage = async () => {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"], 
+        quality: 0.7,
       });
-      router.back();
-    } catch (err) {
-      Alert.alert(
-        "Save Failed",
-        err?.response?.data?.message ||
-          "Something went wrong. Please try again.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
 
-  return (
+      if (!result.canceled) {
+        setProfileImage(result.assets[0].uri);
+      }
+    };
+      const uploadImage = async () => {
+      if (!profileImage) {
+        console.log("No image selected");
+        return;
+      }
+
+      const formData = new FormData();
+
+      formData.append("image", {
+        uri: profileImage,
+        name: "profile.jpg",
+        type: "image/jpeg",
+      });
+
+      try {
+        await api.put("/auth/profile-image", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        console.log("Image uploaded ✅");
+      } catch (err) {
+        console.log("Upload error ❌", err);
+      }
+    };
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          await updateProfile({
+            name,
+            email,
+            dob,
+            address: { street, city, state, postalCode, country },
+          });
+
+          const currentVehicle = vehicles[selectedVehicleIndex];
+
+          if (currentVehicle?.id) {
+            await updateVehicle(currentVehicle.id, {
+              registration: registrationNumber,
+            });
+          }
+
+          // ✅ ADD THIS
+          await uploadImage();
+
+          await fetchProfile();
+          router.back();
+        } catch (err) {
+          Alert.alert("Save Failed", err?.response?.data?.message || "Something went wrong.");
+        } finally {
+          setSaving(false);
+        }
+      };
+      useEffect(() => {
+      if (!selectedVehicle) return;
+
+      setRegistrationNumber(selectedVehicle.registration || "");
+      setVehicleType(selectedVehicle.vehicleType?.name || "");
+      setBrand(selectedVehicle.model?.brand?.name || "");
+      setModel(selectedVehicle.model?.name || "");
+      setModelYear(selectedVehicle.modelYear?.year?.toString() || "");
+    }, [selectedVehicle]);
+   
+    return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: theme.colors.background }]}
       edges={["top"]}
@@ -208,6 +276,30 @@ export default function EditProfileScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+          <TouchableOpacity
+            onPress={pickImage}
+            style={{ alignItems: "center", marginBottom: 20 }}
+          >
+            {profileImage ? (
+              <Image
+                source={{ uri: profileImage }}
+                style={{ width: 100, height: 100, borderRadius: 50 }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: 50,
+                  backgroundColor: "#ccc",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text>Select Image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           {/* Personal Info */}
           <SectionCard
             title="Personal Info"
@@ -289,35 +381,76 @@ export default function EditProfileScreen() {
             />
           </SectionCard>
 
+          {/* Vehicle Selector */}
+      {vehicles.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {vehicles.map((v, index) => (
+            <TouchableOpacity
+              key={v.id}
+              onPress={() => setSelectedVehicleIndex(index)}
+              style={{
+                padding: 8,
+                marginRight: 8,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor:
+                  selectedVehicleIndex === index
+                    ? theme.colors.primary
+                    : theme.colors.border,
+              }}
+            >
+              <Text style={{ color: theme.colors.text }}>
+              {v.model?.brand?.name || ""} {v.model?.name || ""}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+
           {/* Registration */}
-          <SectionCard
-            title="Registration"
-            icon="document-text-outline"
-            theme={theme}
-          >
-            <Field
-              label="Registration Number"
-              value={registrationNumber}
-              onChangeText={setRegistrationNumber}
-              placeholder="e.g. AB-1234-CD"
-              icon="card-outline"
-              theme={theme}
-            />
-            <Field
-              label="Company / Organisation"
-              value={company}
-              onChangeText={setCompany}
-              icon="business-outline"
-              theme={theme}
-            />
-            <Field
-              label="Tax / VAT Number"
-              value={taxNumber}
-              onChangeText={setTaxNumber}
-              icon="barcode-outline"
-              theme={theme}
-            />
-          </SectionCard>
+      <SectionCard title="Registration" icon="document-text-outline" theme={theme}>
+        <Field
+          label="Registration Number"
+          value={registrationNumber}
+          onChangeText={setRegistrationNumber}
+          icon="card-outline"
+          theme={theme}
+        />
+
+        <Field
+          label="Vehicle Type"
+          value={vehicleType}
+          onChangeText={setVehicleType}
+          icon="car-outline"
+          theme={theme}
+        />
+
+        <Field
+          label="Brand"
+          value={brand}
+          onChangeText={setBrand}
+          icon="car-sport-outline"
+          theme={theme}
+        />
+
+        <Field
+          label="Model"
+          value={model}
+          onChangeText={setModel}
+          icon="construct-outline"
+          theme={theme}
+        />
+
+        <Field
+          label="Model Year"
+          value={modelYear}
+          onChangeText={setModelYear}
+          keyboardType="numeric"
+          icon="calendar-outline"
+          theme={theme}
+        />
+      </SectionCard>
 
           {/* Save button at bottom */}
           <TouchableOpacity

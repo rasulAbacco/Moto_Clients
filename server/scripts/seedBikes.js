@@ -3,7 +3,6 @@ import fs from "fs";
 
 const prisma = new PrismaClient();
 
-// load bike json
 const bikes = JSON.parse(
   fs.readFileSync("./src/data/bikes-data.json", "utf-8"),
 );
@@ -19,11 +18,10 @@ async function seedBikes() {
 
   for (const brand of bikes) {
     const createdBrand = await prisma.brand.upsert({
-      where: { slug: brand.slug },
+      where: { name: brand.make }, // ✅ FIX
       update: {},
       create: {
         name: brand.make,
-        slug: brand.slug,
         vehicleTypeId: vehicleType.id,
       },
     });
@@ -32,9 +30,8 @@ async function seedBikes() {
       await prisma.model.create({
         data: {
           name: model.name,
-          slug: model.slug,
           brandId: createdBrand.id,
-          segment: "BIKE",
+          segment: "SUV", // ⚠️ TEMP FIX (see below)
         },
       });
     }

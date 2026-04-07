@@ -92,27 +92,35 @@ export function AuthProvider({ children }) {
     return data.data;
   };
 
-  const syncGuestVehicle = async () => {
-    try {
-      const guestVehicle = await getGuestVehicle();
-      if (!guestVehicle?.brand || !guestVehicle?.model) return;
-      if (!guestVehicle) return;
+ const syncGuestVehicle = async () => {
+  try {
+    const guestVehicle = await getGuestVehicle();
 
-      await api.post(ENDPOINTS.AUTH.VEHICLES, {
-        vehicleType: guestVehicle.type ?? "car",
-        brandSlug: guestVehicle.brand.name,
-        modelSlug: guestVehicle.model.name,
-        fuelType: guestVehicle.fuelType,
-      });
+    if (!guestVehicle?.brand || !guestVehicle?.model) return;
 
-      await clearGuestVehicle();
-    } catch (err) {
-      console.warn(
-        "Guest vehicle sync failed:",
-        err?.response?.data || err?.message,
-      );
-    }
-  };
+    await api.post(ENDPOINTS.AUTH.VEHICLES, {
+      vehicleType: guestVehicle.type ?? "car",
+
+      // ✅ FIXED (use names, not slug)
+      brandName: guestVehicle.brand.name,
+      modelName: guestVehicle.model.name,
+
+      fuelType: guestVehicle.fuelType,
+      transmission: guestVehicle.transmission, // ✅ IMPORTANT
+    });
+
+    await clearGuestVehicle();
+  } catch (err) {
+    console.warn(
+      "Guest vehicle sync failed:",
+      err?.response?.data || err?.message
+    );
+  }
+};
+
+  const updateVehicle = async (id, payload) => {
+  return api.put(`/auth/vehicles/${id}`, payload);
+};
 
   // ===============================
   // 7️⃣ Auto Fetch On App Start
@@ -147,6 +155,7 @@ export function AuthProvider({ children }) {
         logout,
         fetchProfile,
         updateProfile,
+        updateVehicle,
       }}
     >
       {children}

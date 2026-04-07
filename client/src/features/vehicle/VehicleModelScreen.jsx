@@ -21,7 +21,7 @@ const CARD_W = (width - 48) / 2;
 
 export default function VehicleModelScreen() {
   // ✅ Also accept the full brand object so we can forward it to specs
-  const { type, brandSlug, brandData } = useLocalSearchParams();
+  const { type, brandId, brandData } = useLocalSearchParams();
   const router = useRouter();
   const { theme } = useTheme();
 
@@ -29,16 +29,16 @@ export default function VehicleModelScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (brandSlug) {
+    if (brandId) {
       fetchModels();
     }
-  }, [brandSlug]);
+ }, [brandId]);
 
   const fetchModels = async () => {
     try {
-      const res = await api.get(`/vehicles/models/${brandSlug}`, {
-        params: { type },
-      });
+      const res = await api.get(`/vehicles/models/${brandId}`, {
+      params: { type },
+    });
 
       setModels(res.data);
     } catch (err) {
@@ -52,11 +52,11 @@ export default function VehicleModelScreen() {
     router.push({
       pathname: "/vehicle/specs",
       params: {
-        type,
-        brandSlug,
-        brandData,
-        model: JSON.stringify(model),
-      },
+      type,
+      brandId,
+      brandData,
+      model: JSON.stringify(model),
+    },
     });
   };
 
@@ -150,7 +150,7 @@ export default function VehicleModelScreen() {
 
       <FlatList
         data={models}
-        keyExtractor={(item) => item.slug}
+        keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={renderItem}
         contentContainerStyle={styles.grid}

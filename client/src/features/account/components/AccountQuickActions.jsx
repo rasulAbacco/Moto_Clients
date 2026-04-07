@@ -28,12 +28,12 @@ export default function AccountQuickActions() {
       path: "/vehicles",
       badge: null,
     },
-    {
-      title: "Appointments",
-      icon: "calendar-outline",
-      path: "/appointments",
-      badge: 2,
-    },
+    // {
+    //   title: "Appointments",
+    //   icon: "calendar-outline",
+    //   path: "/appointments",
+    //   badge: 2,
+    // },
     {
       title: "Help & Support",
       icon: "help-circle-outline",

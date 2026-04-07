@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from "react-native";
 import { AuthContext } from "../src/providers/AuthProvider";
 import { VehicleContext } from "../src/providers/VehicleProvider";
 
+
 export default function Index() {
   const { user, loading } = useContext(AuthContext);
   const { vehicles, loading: vehiclesLoading } = useContext(VehicleContext);
