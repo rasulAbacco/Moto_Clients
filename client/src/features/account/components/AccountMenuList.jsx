@@ -1,3 +1,4 @@
+//client\src\features\account\components\AccountMenuList.jsx
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
@@ -12,11 +13,11 @@ export default function AccountMenuList() {
       sectionTitle: "Account",
       items: [
         { title: "Profile", icon: "person-outline", path: "/profile" },
-        {
-          title: "Set Preferences",
-          icon: "settings-outline",
-          path: "/preferences",
-        },
+        // {
+        //   title: "Set Preferences",
+        //   icon: "settings-outline",
+        //   path: "/preferences",
+        // },
         {
           title: "Notifications",
           icon: "notifications-outline",
@@ -33,24 +34,24 @@ export default function AccountMenuList() {
           icon: "time-outline",
           path: "/service-history",
         },
-        {
-          title: "Appointments",
-          icon: "calendar-outline",
-          path: "/appointments",
-        },
+        // {
+        //   title: "Appointments",
+        //   icon: "calendar-outline",
+        //   path: "/appointments",
+        // },
       ],
     },
-    {
-      sectionTitle: "Rewards & Partners",
-      items: [
-        { title: "Refer & Earn", icon: "gift-outline", path: "/refer" },
-        {
-          title: "Register as Partner",
-          icon: "business-outline",
-          path: "/partner",
-        },
-      ],
-    },
+    // {
+    //   sectionTitle: "Rewards & Partners",
+    //   items: [
+    //     { title: "Refer & Earn", icon: "gift-outline", path: "/refer" },
+    //    {
+    //     title: "Register as Partner",
+    //     icon: "business-outline",
+    //     url: "https://themotordesk.com/", // ✅ use url instead of path
+    //   },
+    //   ],
+    // },
     {
       sectionTitle: "Support",
       items: [

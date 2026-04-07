@@ -15,6 +15,7 @@ import { useState } from "react";
 import { useTheme } from "../../../src/hooks/useTheme.js";
 import { setSelectedVehicle, setGuestVehicle } from "./vehicle.service";
 import { useAuth } from "../../providers/AuthProvider";
+import api from "../../services/apiClient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FUEL_CATEGORIES = [
@@ -148,42 +149,53 @@ export default function VehicleSpecsScreen() {
 
   const isContinueDisabled = !fuel || !transmission || saving;
 
-  const handleContinue = async () => {
-    if (isContinueDisabled) return;
-    setSaving(true);
-    try {
-      // ✅ KEY FIX: save full objects, not just slugs
-      const vehicleData = {
-        brand: {
-          slug: brandSlug,
-          name: brandObj?.name ?? brandSlug,
-          logoUrl: brandObj?.logoUrl ?? null,
-        },
-        model: {
-          slug: modelObj.slug,
-          name: modelObj.name,
-          thumbnailUrl: modelObj.thumbnailUrl ?? null,
-        },
-        fuelType: fuel,
-        transmission,
-      };
+const handleContinue = async () => {
+  if (isContinueDisabled) return;
+  setSaving(true);
 
-      await setSelectedVehicle(vehicleData);
+  try {
+    const vehicleData = {
+      brand: {
+        name: brandObj?.name ?? "",
+        logoUrl: brandObj?.logoUrl ?? null,
+      },
+      model: {
+        name: modelObj.name,
+        thumbnailUrl: modelObj.thumbnailUrl ?? null,
+      },
+      fuelType: fuel,
+      transmission,
+    };
 
-      
+    // ✅ ALWAYS save locally
+    await setSelectedVehicle(vehicleData);
 
-      // Save guest vehicle only if user not logged in
-      if (!user) {
-        await setGuestVehicle(vehicleData);
-        const stored = await AsyncStorage.getItem("GUEST_VEHICLE");
-        console.log("Guest vehicle stored:", stored);
-      }
+    // ✅ If NOT logged in → guest flow
+    if (!user) {
+      await setGuestVehicle(vehicleData);
+
       router.replace("/(tabs)/home");
-    } catch (e) {
-      console.warn("Vehicle save failed:", e.message);
-      setSaving(false);
+      return; // 🚨 STOP here (no API call)
     }
-  };
+
+    // ✅ If logged in → call backend
+    const payload = {
+      brandName: brandObj?.name,
+      modelName: modelObj.name,
+      fuelType: fuel,
+      transmission,
+      vehicleType: type ?? "car",
+    };
+
+    await api.post("/auth/vehicles", payload);
+
+    router.replace("/(tabs)/home");
+  } catch (e) {
+    console.warn("Vehicle save failed:", e.response?.data || e.message);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const previewImage = modelObj.thumbnailUrl ?? brandObj?.logoUrl ?? null;
 

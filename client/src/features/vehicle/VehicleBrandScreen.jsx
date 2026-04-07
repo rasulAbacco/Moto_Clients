@@ -91,13 +91,13 @@ export default function VehicleBrandScreen() {
           router.push({
             pathname: "/vehicle/model",
             params: {
-              type,
-              brandSlug: item.slug,
-              brandData: JSON.stringify({
-                name: item.name,
-                logoUrl: item.logoUrl,
-              }),
-            },
+            type,
+            brandId: item.id,
+            brandData: JSON.stringify({
+              name: item.name,
+              logoUrl: item.logoUrl,
+            }),
+          },
           })
         }
         activeOpacity={0.7}
@@ -202,7 +202,7 @@ export default function VehicleBrandScreen() {
       {/* Brand Grid */}
       <FlatList
         data={filtered}
-        keyExtractor={(item) => item.slug}
+        keyExtractor={(item, index) => item.id?.toString() || index.toString()}
         numColumns={3}
         renderItem={renderItem}
         contentContainerStyle={styles.grid}

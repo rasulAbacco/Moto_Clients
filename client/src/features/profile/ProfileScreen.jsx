@@ -1,5 +1,5 @@
 // app/(tabs)/profile.jsx  (or wherever your ProfileScreen lives in app/)
-import { useContext, useEffect } from "react";
+import { useContext, useEffect,useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   Dimensions,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +18,8 @@ import { AuthContext } from "../../providers/AuthProvider";
 import { useTheme } from "../../hooks/useTheme";
 import AppButton from "../../components/ui/AppButton";
 import { useLoginSheet } from "../../providers/LoginSheetProvider";
+import api from "../../services/apiClient";
+import { Buffer } from "buffer";
 
 const { width } = Dimensions.get("window");
 
@@ -25,6 +28,7 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const router = useRouter();
   const { openLoginSheet } = useLoginSheet();
+  const [imageUrl, setImageUrl] = useState(null);
 
   // ─── Auth Guard ───────────────────────────────────────
  useEffect(() => {
@@ -37,6 +41,22 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (user) fetchProfile();
   }, []);
+  useEffect(() => {
+  const loadImage = async () => {
+    try {
+      const res = await api.get("/auth/profile-image", {
+        responseType: "arraybuffer",
+      });
+
+      const base64 = `data:image/jpeg;base64,${Buffer.from(res.data).toString("base64")}`;
+      setImageUrl(base64);
+    } catch (err) {
+      setImageUrl(null);
+    }
+  };
+
+  if (user) loadImage();
+}, [user]);
 
   // ─── Loading / unauthenticated state ─────────────────
   if (loading) {
@@ -105,7 +125,7 @@ export default function ProfileScreen() {
       </View>
     </View>
   );
-
+const primaryVehicle = user?.vehicles?.[0] || null;
   // ─── Render ───────────────────────────────────────────
   return (
     <SafeAreaView
@@ -152,15 +172,23 @@ export default function ProfileScreen() {
       >
         {/* Avatar / Hero */}
         <View style={styles.avatarSection}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{
+              width: 90,
+              height: 90,
+              borderRadius: 50,
+            }}
+          />
+        ) : (
           <View
             style={[
               styles.avatarCircle,
               { backgroundColor: theme.colors.primary + "20" },
             ]}
           >
-            <Text
-              style={[styles.avatarInitials, { color: theme.colors.primary }]}
-            >
+            <Text style={[styles.avatarInitials, { color: theme.colors.primary }]}>
               {user?.name
                 ? user.name
                     .split(" ")
@@ -171,6 +199,7 @@ export default function ProfileScreen() {
                 : "??"}
             </Text>
           </View>
+        )}
           <Text style={[styles.userName, { color: theme.colors.text }]}>
             {user?.name || "—"}
           </Text>
@@ -235,107 +264,89 @@ export default function ProfileScreen() {
           <InfoRow
             icon="card-outline"
             label="Registration Number"
-            value={user?.registrationNumber}
+            value={primaryVehicle?.registration || user?.registrationNumber}
           />
+
           <InfoRow
-            icon="business-outline"
-            label="Company / Organisation"
-            value={user?.company}
+            icon="car-outline"
+            label="Vehicle Type"
+            value={primaryVehicle?.vehicleType?.name || "—"}
           />
+
           <InfoRow
-            icon="barcode-outline"
-            label="Tax / VAT Number"
-            value={user?.taxNumber}
+            icon="car-sport-outline"
+            label="Brand"
+            value={primaryVehicle?.brand?.name || "—"}
+          />
+
+          <InfoRow
+            icon="construct-outline"
+            label="Model"
+            value={primaryVehicle?.model?.name || "—"}
+          />
+
+          <InfoRow
+            icon="calendar-outline"
+            label="Model Year"
+            value={primaryVehicle?.modelYear?.year || "—"}
           />
         </SectionCard>
 
         {/* Vehicles */}
-        <SectionCard title="Registered Vehicles" icon="car-outline">
+{/* Vehicles */}
+      <View style={styles.sectionWrap}>
+        <TouchableOpacity
+          style={styles.sectionHeader}
+        onPress={() => router.push("/vehicles")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="car-outline" size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />
+          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
+            REGISTERED VEHICLES
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color={theme.colors.textSecondary} style={{ marginLeft: 4 }} />
+        </TouchableOpacity>
+        <View style={[styles.card, { backgroundColor: theme.colors.card || theme.colors.surface || "#fff", borderColor: theme.colors.border }]}>
           {user?.vehicles && user.vehicles.length > 0 ? (
             user.vehicles.map((v, index) => (
-              <View
+              <TouchableOpacity
                 key={v.id}
-                style={[
-                  styles.vehicleRow,
-                  index < user.vehicles.length - 1 && {
-                    borderBottomWidth: 0.5,
-                    borderBottomColor: theme.colors.border,
-                  },
-                ]}
+                onPress={() => router.push("/vehicles")}
+                activeOpacity={0.7}
+                style={[styles.vehicleRow, index < user.vehicles.length - 1 && { borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }]}
               >
-                <View
-                  style={[
-                    styles.vehicleIcon,
-                    { backgroundColor: theme.colors.primary + "15" },
-                  ]}
-                >
-                  <Ionicons
-                    name="car-sport-outline"
-                    size={20}
-                    color={theme.colors.primary}
-                  />
+                <View style={[styles.vehicleIcon, { backgroundColor: theme.colors.primary + "15" }]}>
+                  <Ionicons name="car-sport-outline" size={20} color={theme.colors.primary} />
                 </View>
                 <View style={styles.vehicleInfo}>
-                  <Text
-                    style={[styles.vehicleName, { color: theme.colors.text }]}
-                  >
-                    {v.company} {v.model}
+                  <Text style={[styles.vehicleName, { color: theme.colors.text }]}>
+                    {v.brand?.name || ""} {v.model?.name || ""}
                   </Text>
-                  <Text
-                    style={[
-                      styles.vehicleReg,
-                      { color: theme.colors.textSecondary },
-                    ]}
-                  >
+                  <Text style={[styles.vehicleReg, { color: theme.colors.textSecondary }]}>
                     {v.registration}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => router.push(`/vehicle/${v.id}`)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={16}
-                    color={theme.colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
+                <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyVehicle}>
-              <Ionicons
-                name="car-outline"
-                size={32}
-                color={theme.colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.emptyText,
-                  { color: theme.colors.textSecondary },
-                ]}
-              >
+              <Ionicons name="car-outline" size={32} color={theme.colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
                 No vehicles registered yet
               </Text>
               <TouchableOpacity
-                onPress={() => router.push("/add-vehicle")}
-                style={[
-                  styles.addVehicleBtn,
-                  { borderColor: theme.colors.primary },
-                ]}
+                onPress={() => router.push("/vehicle/type")}
+                style={[styles.addVehicleBtn, { borderColor: theme.colors.primary }]}
               >
-                <Text
-                  style={[
-                    styles.addVehicleBtnText,
-                    { color: theme.colors.primary },
-                  ]}
-                >
+                <Text style={[styles.addVehicleBtnText, { color: theme.colors.primary }]}>
                   + Add Vehicle
                 </Text>
               </TouchableOpacity>
             </View>
           )}
-        </SectionCard>
+        </View>
+      </View>
 
         {/* Logout */}
         <View style={styles.logoutWrap}>
@@ -397,7 +408,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   sectionTitle: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  card: { borderRadius: 14, borderWidth: 0.5, overflow: "hidden" },
+  card: { borderRadius: 14, borderWidth: 0.5 },
 
   // Info rows
   infoRow: {

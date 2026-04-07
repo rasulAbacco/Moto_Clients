@@ -1,12 +1,9 @@
 // auth.routes.js
 import express from "express";
-import {
-  getProfile,
-  updateProfile,
-  addVehicle,
-  getVehicles,
-} from "../controllers/auth.controller.js";
+import { getProfile, updateProfile, addVehicle, getVehicles, updateVehicle, getVehicleById,
+     addGuestVehicle, uploadProfileImage, getProfileImage  } from "../controllers/auth.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
+import { upload } from "../middleware/upload.middleware.js";
 import { sendOtp, verifyOtp } from "../controllers/otp.controller.js";
 
 const router = express.Router();
@@ -17,10 +14,20 @@ router.post("/verify-otp", verifyOtp);
 
 // Protected — profile
 router.get("/me", authenticate, getProfile);
+router.get("/profile-image", authenticate, getProfileImage);
 router.put("/me", authenticate, updateProfile);
+router.post("/guest/vehicles", addGuestVehicle);
 
 // Protected — vehicles
 router.post("/vehicles", authenticate, addVehicle);
 router.get("/vehicles", authenticate, getVehicles);
+router.get("/vehicles/:id", authenticate, getVehicleById);
+router.put("/vehicles/:id", authenticate, updateVehicle);
+router.put(
+  "/profile-image",
+  authenticate,
+  upload.single("image"),
+  uploadProfileImage
+);
 
 export default router;
