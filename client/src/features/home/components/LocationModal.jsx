@@ -1,23 +1,17 @@
+//client/src/features/home/components/LocationModal.jsx
 import {
   Modal,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
-
-const CITIES = [
-  { name: "Bengaluru", state: "Karnataka" },
-  { name: "Mumbai", state: "Maharashtra" },
-  { name: "Delhi", state: "Delhi NCR" },
-  { name: "Hyderabad", state: "Telangana" },
-  { name: "Chennai", state: "Tamil Nadu" },
-  { name: "Pune", state: "Maharashtra" },
-];
+import { useEffect, useState } from "react";
+import * as Location from "expo-location";
 
 export default function LocationModal({
   visible,
@@ -26,6 +20,59 @@ export default function LocationModal({
   selectedCity,
 }) {
   const { theme } = useTheme();
+
+  const [address, setAddress] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      fetchLocation();
+    }
+  }, [visible]);
+
+  const fetchLocation = async () => {
+    setLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        setAddress("Location permission denied");
+        setLoading(false);
+        return;
+      }
+
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const [geo] = await Location.reverseGeocodeAsync({
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+      });
+
+      if (geo) {
+        // ✅ FULL detailed address (same like SOS)
+        const formatted = [
+          geo.name,
+          geo.street,
+          geo.district,
+          geo.subregion,
+          geo.city,
+          geo.region,
+          geo.postalCode,
+          geo.country,
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        setAddress(formatted);
+      }
+    } catch (e) {
+      setAddress("Unable to fetch location");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Modal
@@ -55,15 +102,13 @@ export default function LocationModal({
             style={[styles.handle, { backgroundColor: theme.colors.border }]}
           />
 
-          {/* Title row */}
+          {/* Title */}
           <View style={styles.titleRow}>
             <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
-              Select City
+              Your Location
             </Text>
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
+
+            <TouchableOpacity onPress={onClose}>
               <Ionicons
                 name="close"
                 size={22}
@@ -72,85 +117,50 @@ export default function LocationModal({
             </TouchableOpacity>
           </View>
 
-          {/* City list */}
-          {CITIES.map((city, index) => {
-            const isSelected = selectedCity === city.name;
-            return (
-              <TouchableOpacity
-                key={city.name}
-                onPress={() => {
-                  onSelect(city.name);
-                  onClose();
-                }}
+          {/* Location Content */}
+          <View style={styles.option}>
+            <View style={styles.optionLeft}>
+              <View
                 style={[
-                  styles.option,
-                  index < CITIES.length - 1 && {
-                    borderBottomWidth: 0.5,
-                    borderBottomColor: theme.colors.border,
-                  },
-                  isSelected && {
-                    backgroundColor: theme.colors.primary + "10",
-                  },
+                  styles.cityIcon,
+                  { backgroundColor: theme.colors.card || "#f5f5f5" },
                 ]}
-                activeOpacity={0.7}
               >
-                <View style={styles.optionLeft}>
-                  <View
-                    style={[
-                      styles.cityIcon,
-                      {
-                        backgroundColor: isSelected
-                          ? theme.colors.primary + "20"
-                          : theme.colors.card || "#f5f5f5",
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="location-outline"
-                      size={16}
-                      color={
-                        isSelected
-                          ? theme.colors.primary
-                          : theme.colors.textSecondary
-                      }
-                    />
-                  </View>
-                  <View>
-                    <Text
-                      style={[
-                        styles.cityName,
-                        {
-                          color: isSelected
-                            ? theme.colors.primary
-                            : theme.colors.text,
-                        },
-                      ]}
-                    >
-                      {city.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.stateName,
-                        { color: theme.colors.textSecondary },
-                      ]}
-                    >
-                      {city.state}
-                    </Text>
-                  </View>
-                </View>
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color={theme.colors.primary}
+                />
+              </View>
 
-                {isSelected && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={18}
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.cityName, { color: theme.colors.text }]}
+                >
+                  Current Location
+                </Text>
+
+                {loading ? (
+                  <ActivityIndicator
+                    size="small"
                     color={theme.colors.primary}
+                    style={{ marginTop: 4 }}
                   />
+                ) : (
+                  <Text
+                    style={[
+                      styles.stateName,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                    numberOfLines={3}
+                  >
+                    {address || "Fetching location..."}
+                  </Text>
                 )}
-              </TouchableOpacity>
-            );
-          })}
+              </View>
+            </View>
+          </View>
 
-          {/* Bottom safe spacing */}
           {Platform.OS === "ios" && <View style={{ height: 20 }} />}
         </TouchableOpacity>
       </TouchableOpacity>
@@ -215,6 +225,6 @@ const styles = StyleSheet.create({
   },
   stateName: {
     fontSize: 11,
-    marginTop: 1,
+    marginTop: 2,
   },
 });

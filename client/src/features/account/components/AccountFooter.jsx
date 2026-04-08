@@ -22,7 +22,7 @@ export default function AccountFooter() {
       <View style={styles.linksRow}>
         {links.map((link, index) => (
           <View key={link.label} style={styles.linkWrap}>
-            <TouchableOpacity onPress={() => router.push(link.path)}>
+            <TouchableOpacity onPress={() => router.navigate(link.path)}>
               <Text
                 style={[styles.link, { color: theme.colors.textSecondary }]}
               >

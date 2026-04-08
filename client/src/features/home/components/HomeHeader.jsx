@@ -12,6 +12,10 @@ export default function HomeHeader() {
   const router = useRouter();
   const [vehicle, setVehicle] = useState(null);
   const [city, setCity] = useState(null);
+
+  // ✅ NEW
+  const [fullAddress, setFullAddress] = useState(null);
+
   const [locationModalVisible, setLocationModalVisible] = useState(false);
 
   useEffect(() => {
@@ -23,18 +27,40 @@ export default function HomeHeader() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setCity("Unknown");
+        setFullAddress("Unknown");
         return;
       }
+
       const loc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
+
       const [place] = await Location.reverseGeocodeAsync({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
       });
-      setCity(place?.city || place?.subregion || place?.region || "Unknown");
+
+      if (place) {
+        // ✅ KEEP EXISTING
+        setCity(place?.city || place?.subregion || place?.region || "Unknown");
+
+        // ✅ ADD FULL ADDRESS (NO NAME)
+        const address = [
+          place.street,
+          place.district,
+          place.subregion,
+          place.city,
+          place.region,
+          place.postalCode,
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        setFullAddress(address);
+      }
     } catch (e) {
       setCity("Unknown");
+      setFullAddress("Unknown");
     }
   };
 
@@ -75,12 +101,15 @@ export default function HomeHeader() {
           activeOpacity={0.75}
         >
           <Ionicons name="location-sharp" size={14} color={accent} />
+
+          {/* ✅ UPDATED HERE */}
           <Text
             style={[styles.cityText, { color: textPrimary }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
-            {city ?? "Locating..."}
+            {fullAddress || city || "Locating..."}
           </Text>
+
           <Ionicons name="chevron-down" size={12} color={textSecondary} />
         </TouchableOpacity>
       </View>
@@ -95,7 +124,6 @@ export default function HomeHeader() {
           onPress={() => router.push("/vehicles")}
           activeOpacity={0.8}
         >
-          {/* Left: image */}
           <View style={[styles.imageWrap, { backgroundColor: imageBg }]}>
             {vehicleImage ? (
               <Image
@@ -108,7 +136,6 @@ export default function HomeHeader() {
             )}
           </View>
 
-          {/* Middle: name + sub */}
           <View style={styles.cardBody}>
             <Text
               style={[styles.carName, { color: textPrimary }]}
@@ -126,7 +153,6 @@ export default function HomeHeader() {
             ) : null}
           </View>
 
-          {/* Right: change icon */}
           <View style={[styles.changeBtn, { backgroundColor: accent + "15" }]}>
             <Ionicons name="swap-horizontal-outline" size={16} color={accent} />
           </View>
@@ -182,8 +208,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cityText: {
-    fontSize: 15,
+    fontSize: 13, // slightly reduced for long address
     fontWeight: "700",
+    flex: 1,
   },
 
   card: {

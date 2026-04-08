@@ -7,6 +7,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  TextInput,        // ✅ was missing — caused the crash
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,7 +17,6 @@ import { useTheme } from "../../../src/hooks/useTheme.js";
 import { setSelectedVehicle, setGuestVehicle } from "./vehicle.service";
 import { useAuth } from "../../providers/AuthProvider";
 import api from "../../services/apiClient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FUEL_CATEGORIES = [
   {
@@ -34,24 +34,12 @@ const FUEL_CATEGORIES = [
     color: "#27ae60",
     options: [
       { label: "Electric (BEV)", icon: "flash-outline" },
-      {
-        label: "Petrol + Electric (Full Hybrid)",
-        icon: "battery-charging-outline",
-      },
-      {
-        label: "Diesel + Electric (Full Hybrid)",
-        icon: "battery-charging-outline",
-      },
+      { label: "Petrol + Electric (Full Hybrid)", icon: "battery-charging-outline" },
+      { label: "Diesel + Electric (Full Hybrid)", icon: "battery-charging-outline" },
       { label: "Petrol + Mild Hybrid (MHEV)", icon: "battery-half-outline" },
       { label: "Diesel + Mild Hybrid (MHEV)", icon: "battery-half-outline" },
-      {
-        label: "Plug-in Hybrid Petrol (PHEV)",
-        icon: "battery-charging-outline",
-      },
-      {
-        label: "Plug-in Hybrid Diesel (PHEV)",
-        icon: "battery-charging-outline",
-      },
+      { label: "Plug-in Hybrid Petrol (PHEV)", icon: "battery-charging-outline" },
+      { label: "Plug-in Hybrid Diesel (PHEV)", icon: "battery-charging-outline" },
     ],
   },
   {
@@ -88,36 +76,16 @@ const BIKE_FUEL_OPTIONS = [
 
 const TRANSMISSION_OPTIONS = [
   { label: "Manual", icon: "settings-outline", desc: "Gear lever & clutch" },
-  {
-    label: "Automatic",
-    icon: "speedometer-outline",
-    desc: "Self-shifting gears",
-  },
-  {
-    label: "CVT",
-    icon: "radio-button-on-outline",
-    desc: "Continuously variable",
-  },
+  { label: "Automatic", icon: "speedometer-outline", desc: "Self-shifting gears" },
+  { label: "CVT", icon: "radio-button-on-outline", desc: "Continuously variable" },
   { label: "DCT / DSG", icon: "git-merge-outline", desc: "Dual-clutch" },
   { label: "AMT", icon: "construct-outline", desc: "Automated manual" },
 ];
 
 const BIKE_TRANSMISSION_OPTIONS = [
-  {
-    label: "Manual",
-    icon: "settings-outline",
-    desc: "Clutch + gear shifting",
-  },
-  {
-    label: "Automatic",
-    icon: "speedometer-outline",
-    desc: "CVT / Scooter automatic",
-  },
-  {
-    label: "Semi-Automatic",
-    icon: "git-branch-outline",
-    desc: "Clutchless gear shifting",
-  },
+  { label: "Manual", icon: "settings-outline", desc: "Clutch + gear shifting" },
+  { label: "Automatic", icon: "speedometer-outline", desc: "CVT / Scooter automatic" },
+  { label: "Semi-Automatic", icon: "git-branch-outline", desc: "Clutchless gear shifting" },
 ];
 
 export default function VehicleSpecsScreen() {
@@ -125,19 +93,18 @@ export default function VehicleSpecsScreen() {
   const { theme } = useTheme();
   const { user } = useAuth();
 
-  // model.jsx must now pass brandData as well (see note below)
-  const { type, brandSlug, brandData, model } = useLocalSearchParams();
+  const { type, brandId, brandData, model } = useLocalSearchParams();
 
   const modelObj = JSON.parse(model);
   const brandObj = brandData ? JSON.parse(brandData) : null;
 
   const [fuel, setFuel] = useState(null);
   const [transmission, setTransmission] = useState(null);
+  const [year, setYear] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fuelCategories = type === "bike" ? BIKE_FUEL_OPTIONS : FUEL_CATEGORIES;
-  const transmissionOptions =
-    type === "bike" ? BIKE_TRANSMISSION_OPTIONS : TRANSMISSION_OPTIONS;
+  const transmissionOptions = type === "bike" ? BIKE_TRANSMISSION_OPTIONS : TRANSMISSION_OPTIONS;
 
   const isDark = theme.dark;
   const surface = isDark ? "#1c1c1e" : "#ffffff";
@@ -149,53 +116,70 @@ export default function VehicleSpecsScreen() {
 
   const isContinueDisabled = !fuel || !transmission || saving;
 
-const handleContinue = async () => {
-  if (isContinueDisabled) return;
-  setSaving(true);
+  // ─────────────────────────────────────────────────────────
+  // handleContinue
+  //
+  // FLOW for logged-in users:
+  //   1. POST /auth/vehicles  →  backend creates a NEW ModelYear row
+  //      (modelId + year)  →  copies its id into Vehicle.modelYearId
+  //   2. No upsert, no lookup — always a fresh ModelYear per save
+  //
+  // FLOW for guests:
+  //   1. Save locally only, no API call
+  // ─────────────────────────────────────────────────────────
+  const handleContinue = async () => {
+    if (isContinueDisabled) return;
+    setSaving(true);
 
-  try {
-    const vehicleData = {
-      brand: {
-        name: brandObj?.name ?? "",
-        logoUrl: brandObj?.logoUrl ?? null,
-      },
-      model: {
-        name: modelObj.name,
-        thumbnailUrl: modelObj.thumbnailUrl ?? null,
-      },
-      fuelType: fuel,
-      transmission,
-    };
+    try {
+      // Always save locally so home screen can read the vehicle
+      const vehicleData = {
+        brand: {
+          name: brandObj?.name ?? "",
+          logoUrl: brandObj?.logoUrl ?? null,
+        },
+        model: {
+          name: modelObj.name,
+          thumbnailUrl: modelObj.thumbnailUrl ?? null,
+        },
+        fuelType: fuel,
+        transmission,
+        modelYear: year || null,
+      };
 
-    // ✅ ALWAYS save locally
-    await setSelectedVehicle(vehicleData);
+      await setSelectedVehicle(vehicleData);
 
-    // ✅ If NOT logged in → guest flow
-    if (!user) {
-      await setGuestVehicle(vehicleData);
+      // Guest flow — stop here
+      if (!user) {
+        await setGuestVehicle(vehicleData);
+        router.replace("/(tabs)/home");
+        return;
+      }
+
+      // Logged-in flow
+      // Backend will:
+      //   1. Find brand by name
+      //   2. Find model by name + brandId
+      //   3. CREATE a new ModelYear { modelId, year }  ← always new
+      //   4. Copy new ModelYear.id → Vehicle.modelYearId
+      const payload = {
+        vehicleType: type ?? "car",
+        brandName: brandObj?.name,
+        modelName: modelObj.name,
+        modelYear: year || null,   // e.g. "2023"
+        fuelType: fuel,
+        transmission,
+      };
+
+      await api.post("/auth/vehicles", payload);
 
       router.replace("/(tabs)/home");
-      return; // 🚨 STOP here (no API call)
+    } catch (e) {
+      console.warn("Vehicle save failed:", e.response?.data || e.message);
+    } finally {
+      setSaving(false);
     }
-
-    // ✅ If logged in → call backend
-    const payload = {
-      brandName: brandObj?.name,
-      modelName: modelObj.name,
-      fuelType: fuel,
-      transmission,
-      vehicleType: type ?? "car",
-    };
-
-    await api.post("/auth/vehicles", payload);
-
-    router.replace("/(tabs)/home");
-  } catch (e) {
-    console.warn("Vehicle save failed:", e.response?.data || e.message);
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   const previewImage = modelObj.thumbnailUrl ?? brandObj?.logoUrl ?? null;
 
@@ -222,30 +206,20 @@ const handleContinue = async () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Hero */}
         <View style={styles.heroWrap}>
-          <Text style={[styles.heroEyebrow, { color: accent }]}>
-            STEP 3 OF 3
-          </Text>
-          <Text style={[styles.heroTitle, { color: textPrimary }]}>
-            Almost done! 🎉
-          </Text>
+          <Text style={[styles.heroEyebrow, { color: accent }]}>STEP 3 OF 3</Text>
+          <Text style={[styles.heroTitle, { color: textPrimary }]}>Almost done! 🎉</Text>
           <Text style={[styles.heroSub, { color: textSecondary }]}>
             Tell us a bit more about your {type === "bike" ? "bike" : "car"}
           </Text>
         </View>
 
         {/* Summary Card */}
-        <View
-          style={[
-            styles.summaryCard,
-            { backgroundColor: surface, borderColor: border },
-          ]}
-        >
-          <View
-            style={[styles.summaryIconWrap, { backgroundColor: accent + "12" }]}
-          >
+        <View style={[styles.summaryCard, { backgroundColor: surface, borderColor: border }]}>
+          <View style={[styles.summaryIconWrap, { backgroundColor: accent + "12" }]}>
             {previewImage ? (
               <Image
                 source={{ uri: previewImage }}
@@ -258,13 +232,12 @@ const handleContinue = async () => {
           </View>
           <View style={styles.summaryBody}>
             <Text style={[styles.summaryName, { color: textPrimary }]}>
-              {brandObj?.name
-                ? `${brandObj.name} ${modelObj.name}`
-                : modelObj.name}
+              {brandObj?.name ? `${brandObj.name} ${modelObj.name}` : modelObj.name}
             </Text>
             <Text style={[styles.summaryMeta, { color: textSecondary }]}>
               {fuel ?? "No fuel type selected"}
               {transmission ? ` · ${transmission}` : ""}
+              {year ? ` · ${year}` : ""}
             </Text>
           </View>
           {fuel && transmission && (
@@ -272,13 +245,45 @@ const handleContinue = async () => {
           )}
         </View>
 
-        {/* Fuel Type */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: textPrimary }]}>
-            Fuel Type
-          </Text>
+        {/* ── Model Year ── */}
+        <View style={[styles.section, { marginBottom: 28 }]}>
+          <Text style={[styles.sectionTitle, { color: textPrimary }]}>Model Year</Text>
           <Text style={[styles.sectionSub, { color: textSecondary }]}>
-            Select the fuel your car runs on
+            What year is your {type === "bike" ? "bike" : "car"}? (optional)
+          </Text>
+          <TextInput
+            value={year}
+            onChangeText={(v) => {
+              // Only allow digits, max 4
+              const clean = v.replace(/[^0-9]/g, "").slice(0, 4);
+              setYear(clean);
+            }}
+            placeholder="e.g. 2023"
+            keyboardType="numeric"
+            maxLength={4}
+            returnKeyType="done"
+            style={[
+              styles.yearInput,
+              {
+                borderColor: year.length === 4 ? accent : border,
+                backgroundColor: surface,
+                color: textPrimary,
+              },
+            ]}
+            placeholderTextColor={textSecondary + "90"}
+          />
+          {year.length > 0 && year.length < 4 && (
+            <Text style={[styles.yearHint, { color: "#e74c3c" }]}>
+              Enter a valid 4-digit year
+            </Text>
+          )}
+        </View>
+
+        {/* ── Fuel Type ── */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: textPrimary }]}>Fuel Type</Text>
+          <Text style={[styles.sectionSub, { color: textSecondary }]}>
+            Select the fuel your {type === "bike" ? "bike" : "car"} runs on
           </Text>
           {fuelCategories.map((cat) => (
             <View key={cat.category} style={styles.categoryBlock}>
@@ -288,12 +293,7 @@ const handleContinue = async () => {
                   {cat.category}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.fuelGroup,
-                  { backgroundColor: surface, borderColor: border },
-                ]}
-              >
+              <View style={[styles.fuelGroup, { backgroundColor: surface, borderColor: border }]}>
                 {cat.options.map((opt, idx) => {
                   const isSelected = fuel === opt.label;
                   const isLast = idx === cat.options.length - 1;
@@ -314,11 +314,7 @@ const handleContinue = async () => {
                       <View
                         style={[
                           styles.fuelIconWrap,
-                          {
-                            backgroundColor: isSelected
-                              ? accent + "20"
-                              : cardBg,
-                          },
+                          { backgroundColor: isSelected ? accent + "20" : cardBg },
                         ]}
                       >
                         <Ionicons
@@ -330,24 +326,15 @@ const handleContinue = async () => {
                       <Text
                         style={[
                           styles.fuelLabel,
-                          {
-                            color: textPrimary,
-                            fontWeight: isSelected ? "700" : "500",
-                          },
+                          { color: textPrimary, fontWeight: isSelected ? "700" : "500" },
                         ]}
                       >
                         {opt.label}
                       </Text>
                       {isSelected ? (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={18}
-                          color={accent}
-                        />
+                        <Ionicons name="checkmark-circle" size={18} color={accent} />
                       ) : (
-                        <View
-                          style={[styles.radioEmpty, { borderColor: border }]}
-                        />
+                        <View style={[styles.radioEmpty, { borderColor: border }]} />
                       )}
                     </TouchableOpacity>
                   );
@@ -357,23 +344,16 @@ const handleContinue = async () => {
           ))}
         </View>
 
-        {/* Transmission */}
+        {/* ── Transmission ── */}
         <View style={[styles.section, { marginBottom: 40 }]}>
-          <Text style={[styles.sectionTitle, { color: textPrimary }]}>
-            Transmission
-          </Text>
+          <Text style={[styles.sectionTitle, { color: textPrimary }]}>Transmission</Text>
           <Text style={[styles.sectionSub, { color: textSecondary }]}>
             How does your {type === "bike" ? "bike" : "car"} change gears?
           </Text>
-          <View
-            style={[
-              styles.fuelGroup,
-              { backgroundColor: surface, borderColor: border },
-            ]}
-          >
+          <View style={[styles.fuelGroup, { backgroundColor: surface, borderColor: border }]}>
             {transmissionOptions.map((opt, idx) => {
               const isSelected = transmission === opt.label;
-              const isLast = idx === TRANSMISSION_OPTIONS.length - 1;
+              const isLast = idx === transmissionOptions.length - 1;
               return (
                 <TouchableOpacity
                   key={opt.label}
@@ -404,10 +384,7 @@ const handleContinue = async () => {
                     <Text
                       style={[
                         styles.fuelLabel,
-                        {
-                          color: textPrimary,
-                          fontWeight: isSelected ? "700" : "500",
-                        },
+                        { color: textPrimary, fontWeight: isSelected ? "700" : "500" },
                       ]}
                     >
                       {opt.label}
@@ -417,15 +394,9 @@ const handleContinue = async () => {
                     </Text>
                   </View>
                   {isSelected ? (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={18}
-                      color={accent}
-                    />
+                    <Ionicons name="checkmark-circle" size={18} color={accent} />
                   ) : (
-                    <View
-                      style={[styles.radioEmpty, { borderColor: border }]}
-                    />
+                    <View style={[styles.radioEmpty, { borderColor: border }]} />
                   )}
                 </TouchableOpacity>
               );
@@ -478,18 +449,8 @@ const styles = StyleSheet.create({
   headerRight: { minWidth: 44 },
   scroll: { paddingHorizontal: 16, paddingBottom: 20 },
   heroWrap: { paddingTop: 22, paddingBottom: 16 },
-  heroEyebrow: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 2,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: -0.4,
-    marginBottom: 5,
-  },
+  heroEyebrow: { fontSize: 11, fontWeight: "700", letterSpacing: 2, marginBottom: 8 },
+  heroTitle: { fontSize: 26, fontWeight: "800", letterSpacing: -0.4, marginBottom: 5 },
   heroSub: { fontSize: 14 },
   summaryCard: {
     flexDirection: "row",
@@ -517,28 +478,26 @@ const styles = StyleSheet.create({
   summaryBody: { flex: 1 },
   summaryName: { fontSize: 15, fontWeight: "700" },
   summaryMeta: { fontSize: 12, marginTop: 2 },
-  section: { marginBottom: 28 },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    letterSpacing: -0.2,
-    marginBottom: 3,
+
+  // Year input
+  yearInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 18,
+    fontWeight: "600",
+    letterSpacing: 2,
   },
+  yearHint: { fontSize: 11, marginTop: 6, marginLeft: 4 },
+
+  section: { marginBottom: 28 },
+  sectionTitle: { fontSize: 17, fontWeight: "800", letterSpacing: -0.2, marginBottom: 3 },
   sectionSub: { fontSize: 12, marginBottom: 14 },
   categoryBlock: { marginBottom: 14 },
-  catHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    marginBottom: 7,
-  },
+  catHeader: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 7 },
   catDot: { width: 8, height: 8, borderRadius: 4 },
-  catLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
+  catLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 0.8, textTransform: "uppercase" },
   fuelGroup: {
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
@@ -580,10 +539,5 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
   },
-  continueBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
+  continueBtnText: { color: "#fff", fontSize: 16, fontWeight: "700", letterSpacing: 0.2 },
 });

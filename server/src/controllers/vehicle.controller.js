@@ -120,37 +120,21 @@ export const getModels = async (req, res) => {
   try {
     const { brandId } = req.params;
 
-    console.log("👉 brandId:", brandId);
-
     const models = await prisma.model.findMany({
       where: { brandId: String(brandId) },
-      include: {
-        ModelYear: true,
-      },
+      include: { ModelYear: true },
     });
 
     const formatted = models.map((m) => {
-      // ✅ sort ALL years first
-      const sortedYears = [...(m.ModelYear || [])].sort(
-        (a, b) => b.year - a.year
-      );
-
-      // ✅ pick first VALID image
-      const withImage = sortedYears.find(
-        (y) => y.thumbnailUrl && y.thumbnailUrl !== ""
-      );
+      const sortedYears = [...(m.ModelYear || [])].sort((a, b) => b.year - a.year);
+      const withImage = sortedYears.find((y) => y.thumbnailUrl && y.thumbnailUrl !== "");
 
       return {
-        id: m.id,
+        id: m.id,           // ✅ modelId — needed for createModelYear
         name: m.name,
         thumbnailUrl: withImage?.thumbnailUrl || null,
       };
     });
-
-    console.log(
-      "👉 sample output:",
-      formatted.slice(0, 3)
-    );
 
     res.json(formatted);
   } catch (error) {

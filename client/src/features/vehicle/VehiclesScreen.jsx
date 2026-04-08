@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -20,6 +22,10 @@ export default function VehiclesScreen() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     fetchVehicles();
   }, []);
@@ -32,6 +38,27 @@ export default function VehiclesScreen() {
       console.log("Vehicles fetch error:", err.response?.data || err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const confirmDelete = (vehicle) => {
+    setDeleteTarget({
+      id: vehicle.id,
+      name: `${vehicle.brand?.name || ""} ${vehicle.model?.name || ""}`.trim(),
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/auth/vehicles/${deleteTarget.id}`);
+      setVehicles((prev) => prev.filter((v) => v.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      console.log("Delete error:", err.response?.data || err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -96,14 +123,33 @@ export default function VehiclesScreen() {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-          {vehicles.map((vehicle, index) => (
+          {vehicles.map((vehicle) => (
             <View
               key={vehicle.id}
-              style={[styles.vehicleCard, { backgroundColor: theme.colors.card || theme.colors.surface || "#fff", borderColor: theme.colors.border }]}
+              style={[
+                styles.vehicleCard,
+                {
+                  backgroundColor: theme.colors.card || theme.colors.surface || "#fff",
+                  borderColor: theme.colors.border,
+                },
+              ]}
             >
               {/* Vehicle Hero */}
-              <View style={[styles.heroCard, { backgroundColor: theme.colors.primary + "12", borderColor: theme.colors.primary + "25" }]}>
-                <View style={[styles.heroIconWrap, { backgroundColor: theme.colors.primary + "20" }]}>
+              <View
+                style={[
+                  styles.heroCard,
+                  {
+                    backgroundColor: theme.colors.primary + "12",
+                    borderColor: theme.colors.primary + "25",
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.heroIconWrap,
+                    { backgroundColor: theme.colors.primary + "20" },
+                  ]}
+                >
                   <Ionicons name="car-sport-outline" size={36} color={theme.colors.primary} />
                 </View>
                 <View style={styles.heroText}>
@@ -126,14 +172,93 @@ export default function VehiclesScreen() {
                 <InfoRow icon="car-outline" label="Vehicle Type" value={vehicle.vehicleType?.name} />
                 <InfoRow icon="car-sport-outline" label="Brand" value={vehicle.brand?.name} />
                 <InfoRow icon="construct-outline" label="Model" value={vehicle.model?.name} />
-                <InfoRow icon="calendar-outline" label="Model Year" value={vehicle.modelYear?.year?.toString()} />
+                <InfoRow
+                  icon="calendar-outline"
+                  label="Model Year"
+                  value={vehicle.modelYear?.year?.toString()}
+                />
                 <InfoRow icon="flame-outline" label="Fuel Type" value={vehicle.fuelType} />
                 <InfoRow icon="card-outline" label="Registration" value={vehicle.registration} />
               </View>
+
+              {/* Delete Button */}
+              <TouchableOpacity
+                style={[styles.deleteBtn, { borderTopColor: theme.colors.border }]}
+                onPress={() => confirmDelete(vehicle)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                <Text style={styles.deleteBtnText}>Remove Vehicle</Text>
+              </TouchableOpacity>
             </View>
           ))}
         </ScrollView>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={!!deleteTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && setDeleteTarget(null)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => !deleting && setDeleteTarget(null)}
+        >
+          <Pressable style={[styles.modalSheet, { backgroundColor: theme.colors.card || theme.colors.surface || "#fff" }]}>
+            {/* Icon */}
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#ef4444" />
+            </View>
+
+            {/* Text */}
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Remove Vehicle?
+            </Text>
+            <Text style={[styles.modalSub, { color: theme.colors.textSecondary }]}>
+              Are you sure you want to remove{"\n"}
+              <Text style={{ fontWeight: "700", color: theme.colors.text }}>
+                {deleteTarget?.name}
+              </Text>
+              {" "}from your account? This action cannot be undone.
+            </Text>
+
+            {/* Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[
+                  styles.modalCancelBtn,
+                  { borderColor: theme.colors.border, backgroundColor: theme.colors.background },
+                ]}
+                onPress={() => setDeleteTarget(null)}
+                disabled={deleting}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modalCancelText, { color: theme.colors.text }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalDeleteBtn, deleting && { opacity: 0.6 }]}
+                onPress={handleDelete}
+                disabled={deleting}
+                activeOpacity={0.8}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="trash-outline" size={16} color="#fff" />
+                    <Text style={styles.modalDeleteText}>Remove</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -150,10 +275,24 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", minWidth: 60 },
   backLabel: { fontSize: 16, marginLeft: 2 },
   headerTitle: { fontSize: 17, fontWeight: "700" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 32 },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 32,
+  },
   emptyTitle: { fontSize: 18, fontWeight: "700", marginTop: 8 },
   emptySub: { fontSize: 13, textAlign: "center", lineHeight: 20 },
-  addBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14 },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+  },
   addBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   scroll: { padding: 16, paddingBottom: 48, gap: 16 },
   vehicleCard: { borderRadius: 16, borderWidth: 0.5, overflow: "hidden" },
@@ -164,7 +303,14 @@ const styles = StyleSheet.create({
     gap: 12,
     borderBottomWidth: 1,
   },
-  heroIconWrap: { width: 56, height: 56, borderRadius: 14, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  heroIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
   heroText: { flex: 1 },
   heroName: { fontSize: 15, fontWeight: "700" },
   heroSub: { fontSize: 12, marginTop: 2 },
@@ -183,4 +329,77 @@ const styles = StyleSheet.create({
   infoTextWrap: { flex: 1 },
   infoLabel: { fontSize: 10, fontWeight: "500", marginBottom: 1 },
   infoValue: { fontSize: 13, fontWeight: "600" },
+
+  // Delete button at bottom of card
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 13,
+    borderTopWidth: 0.5,
+  },
+  deleteBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#ef4444",
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 40,
+    alignItems: "center",
+    gap: 12,
+  },
+  modalIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#ef444415",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  modalTitle: { fontSize: 20, fontWeight: "800", letterSpacing: -0.3 },
+  modalSub: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: "center",
+    paddingHorizontal: 8,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+    width: "100%",
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelText: { fontSize: 15, fontWeight: "600" },
+  modalDeleteBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#fff" },
 });

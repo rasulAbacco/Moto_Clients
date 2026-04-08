@@ -1,5 +1,5 @@
 // app/edit-profile.jsx
-import { useContext, useState,useEffect} from "react";
+import { useContext, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Alert,
-  Image
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,12 +21,9 @@ import { AuthContext } from "../../providers/AuthProvider";
 import { useTheme } from "../../hooks/useTheme";
 import api from "../../services/apiClient.js";
 
-
 // ─────────────────────────────────────────────────────────
-// ✅ Moved OUTSIDE the screen component so they are never
-//    recreated on re-render → cursor / focus stays in place
+// Field — defined OUTSIDE component so it never remounts
 // ─────────────────────────────────────────────────────────
-
 const Field = ({
   label,
   value,
@@ -51,16 +48,25 @@ const Field = ({
       <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>
         {label}
       </Text>
+      {/* Lock badge for read-only fields */}
+      {!editable && (
+        <Ionicons
+          name="lock-closed-outline"
+          size={11}
+          color={theme.colors.textSecondary + "80"}
+          style={{ marginLeft: 4 }}
+        />
+      )}
     </View>
     <TextInput
       style={[
         styles.input,
         {
           color: editable ? theme.colors.text : theme.colors.textSecondary,
-          borderColor: theme.colors.border,
+          borderColor: editable ? theme.colors.border : "transparent",
           backgroundColor: editable
             ? theme.colors.inputBackground || theme.colors.surface || "#f5f5f5"
-            : theme.colors.border + "40",
+            : theme.colors.border + "30",
         },
         multiline && { height: 80, textAlignVertical: "top" },
       ]}
@@ -86,9 +92,7 @@ const SectionCard = ({ title, icon, children, theme }) => (
         color={theme.colors.primary}
         style={{ marginRight: 6 }}
       />
-      <Text
-        style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}
-      >
+      <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
         {title.toUpperCase()}
       </Text>
     </View>
@@ -109,121 +113,120 @@ const SectionCard = ({ title, icon, children, theme }) => (
 // ─────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────
-
 export default function EditProfileScreen() {
   const { user, updateProfile, fetchProfile, updateVehicle } = useContext(AuthContext);
   const { theme } = useTheme();
   const router = useRouter();
+
   const [saving, setSaving] = useState(false);
   const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(0);
+  const [profileImage, setProfileImage] = useState(null);
+
   const vehicles = user?.vehicles || [];
   const selectedVehicle = vehicles[selectedVehicleIndex] || null;
-  const [profileImage, setProfileImage] = useState(null);
-  // Personal
+
+  // ── Personal ──────────────────────────────────────────
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [dob, setDob] = useState(user?.dob || "");
 
-  // Address
+  // ── Address ───────────────────────────────────────────
   const [street, setStreet] = useState(user?.address?.street || "");
   const [city, setCity] = useState(user?.address?.city || "");
   const [state, setState] = useState(user?.address?.state || "");
   const [postalCode, setPostalCode] = useState(user?.address?.postalCode || "");
   const [country, setCountry] = useState(user?.address?.country || "");
 
-  // Registration
-const [registrationNumber, setRegistrationNumber] = useState(
-  selectedVehicle?.registration || user?.registrationNumber || ""
-);
+  // ── Vehicle (editable fields only) ───────────────────
+  // These two the user can change:
+  const [registrationNumber, setRegistrationNumber] = useState(
+    selectedVehicle?.registration || ""
+  );
+  const [modelYear, setModelYear] = useState(
+    selectedVehicle?.modelYear?.year?.toString() || ""
+  );
 
-    const [vehicleType, setVehicleType] = useState(
-      selectedVehicle?.vehicleType?.name || ""
-    );
-    const [brand, setBrand] = useState(
-      selectedVehicle?.model?.brand?.name || ""
-    );
-    const [model, setModel] = useState(
-      selectedVehicle?.model?.name || ""
-    );
-    const [modelYear, setModelYear] = useState(
-      selectedVehicle?.modelYear?.year?.toString() || ""
-    );
-     const pickImage = async () => {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"], 
-        quality: 0.7,
+  // ── Sync vehicle fields when switching between vehicles ──
+  // Brand / Model / VehicleType come straight from the DB
+  // (selected during the Brand → Model → Specs flow).
+  // They are READ-ONLY here — we just display them.
+  //
+  // ✅ FIX: Prisma returns vehicle.brand.name  (direct relation)
+  //         NOT  vehicle.model.brand.name  (that was the bug)
+  useEffect(() => {
+    if (!selectedVehicle) return;
+    setRegistrationNumber(selectedVehicle.registration || "");
+    setModelYear(selectedVehicle.modelYear?.year?.toString() || "");
+  }, [selectedVehicleIndex, selectedVehicle]);
+
+  // ── Derived display values (read-only, from DB) ──────
+  const displayVehicleType = selectedVehicle?.vehicleType?.name || "—";
+  const displayBrand       = selectedVehicle?.brand?.name  || "—";   // ✅ correct path
+  const displayModel       = selectedVehicle?.model?.name  || "—";
+
+  // ── Image picker ─────────────────────────────────────
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async () => {
+    if (!profileImage) return;
+    const formData = new FormData();
+    formData.append("image", { uri: profileImage, name: "profile.jpg", type: "image/jpeg" });
+    try {
+      await api.put("/auth/profile-image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+    } catch (err) {
+      console.log("Upload error ❌", err);
+    }
+  };
+
+  // ── Save ─────────────────────────────────────────────
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // 1. Update personal info + address
+      await updateProfile({
+        name,
+        email,
+        dob,
+        address: { street, city, state, postalCode, country },
       });
 
-      if (!result.canceled) {
-        setProfileImage(result.assets[0].uri);
-      }
-    };
-      const uploadImage = async () => {
-      if (!profileImage) {
-        console.log("No image selected");
-        return;
-      }
-
-      const formData = new FormData();
-
-      formData.append("image", {
-        uri: profileImage,
-        name: "profile.jpg",
-        type: "image/jpeg",
-      });
-
-      try {
-        await api.put("/auth/profile-image", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+      // 2. Update vehicle — only registration + modelYear are editable.
+      //    Brand / model / vehicleType are already stored; we pass them
+      //    so the backend can resolve relations, but they won't change.
+      if (selectedVehicle?.id) {
+        await updateVehicle(selectedVehicle.id, {
+          registration: registrationNumber,
+          vehicleType:  selectedVehicle?.vehicleType?.name,
+          brandName:    selectedVehicle?.brand?.name,   // ✅ correct path
+          modelName:    selectedVehicle?.model?.name,
+          modelYear:    modelYear,
         });
-
-        console.log("Image uploaded ✅");
-      } catch (err) {
-        console.log("Upload error ❌", err);
       }
-    };
-      const handleSave = async () => {
-        setSaving(true);
-        try {
-          await updateProfile({
-            name,
-            email,
-            dob,
-            address: { street, city, state, postalCode, country },
-          });
 
-          const currentVehicle = vehicles[selectedVehicleIndex];
+      // 3. Upload profile image if changed
+      await uploadImage();
 
-          if (currentVehicle?.id) {
-            await updateVehicle(currentVehicle.id, {
-              registration: registrationNumber,
-            });
-          }
+      // 4. Refresh and go back
+      await fetchProfile();
+      router.back();
+    } catch (err) {
+      Alert.alert("Save Failed", err?.response?.data?.message || "Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-          // ✅ ADD THIS
-          await uploadImage();
-
-          await fetchProfile();
-          router.back();
-        } catch (err) {
-          Alert.alert("Save Failed", err?.response?.data?.message || "Something went wrong.");
-        } finally {
-          setSaving(false);
-        }
-      };
-      useEffect(() => {
-      if (!selectedVehicle) return;
-
-      setRegistrationNumber(selectedVehicle.registration || "");
-      setVehicleType(selectedVehicle.vehicleType?.name || "");
-      setBrand(selectedVehicle.model?.brand?.name || "");
-      setModel(selectedVehicle.model?.name || "");
-      setModelYear(selectedVehicle.modelYear?.year?.toString() || "");
-    }, [selectedVehicle]);
-   
-    return (
+  return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: theme.colors.background }]}
       edges={["top"]}
@@ -241,9 +244,7 @@ const [registrationNumber, setRegistrationNumber] = useState(
             color={theme.colors.primary}
           />
           {Platform.OS === "ios" && (
-            <Text style={[styles.backLabel, { color: theme.colors.primary }]}>
-              Back
-            </Text>
+            <Text style={[styles.backLabel, { color: theme.colors.primary }]}>Back</Text>
           )}
         </TouchableOpacity>
 
@@ -259,206 +260,165 @@ const [registrationNumber, setRegistrationNumber] = useState(
           {saving ? (
             <ActivityIndicator size="small" color={theme.colors.primary} />
           ) : (
-            <Text style={[styles.saveLabel, { color: theme.colors.primary }]}>
-              Save
-            </Text>
+            <Text style={[styles.saveLabel, { color: theme.colors.primary }]}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity
-            onPress={pickImage}
-            style={{ alignItems: "center", marginBottom: 20 }}
-          >
+          {/* Profile Image */}
+          <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
             {profileImage ? (
-              <Image
-                source={{ uri: profileImage }}
-                style={{ width: 100, height: 100, borderRadius: 50 }}
-              />
+              <Image source={{ uri: profileImage }} style={styles.avatar} />
             ) : (
               <View
-                style={{
-                  width: 100,
-                  height: 100,
-                  borderRadius: 50,
-                  backgroundColor: "#ccc",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                style={[
+                  styles.avatarPlaceholder,
+                  { backgroundColor: theme.colors.primary + "20" },
+                ]}
               >
-                <Text>Select Image</Text>
+                <Text style={[styles.avatarInitials, { color: theme.colors.primary }]}>
+                  {user?.name
+                    ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+                    : "??"}
+                </Text>
               </View>
             )}
+            <View style={[styles.camerabadge, { backgroundColor: theme.colors.primary }]}>
+              <Ionicons name="camera" size={12} color="#fff" />
+            </View>
           </TouchableOpacity>
+
           {/* Personal Info */}
-          <SectionCard
-            title="Personal Info"
-            icon="person-outline"
-            theme={theme}
-          >
-            <Field
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              icon="person-outline"
-              theme={theme}
-            />
-            <Field
-              label="Email Address"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              icon="mail-outline"
-              theme={theme}
-            />
-            <Field
-              label="Phone Number"
-              value={user?.phone || ""}
-              onChangeText={() => {}}
-              keyboardType="phone-pad"
-              icon="call-outline"
-              editable={false}
-              theme={theme}
-            />
-            <Field
-              label="Date of Birth"
-              value={dob}
-              onChangeText={setDob}
-              placeholder="DD/MM/YYYY"
-              icon="calendar-outline"
-              theme={theme}
-            />
+          <SectionCard title="Personal Info" icon="person-outline" theme={theme}>
+            <Field label="Full Name" value={name} onChangeText={setName} icon="person-outline" theme={theme} />
+            <Field label="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" icon="mail-outline" theme={theme} />
+            <Field label="Phone Number" value={user?.phone || ""} onChangeText={() => {}} keyboardType="phone-pad" icon="call-outline" editable={false} theme={theme} />
+            <Field label="Date of Birth" value={dob} onChangeText={setDob} placeholder="DD/MM/YYYY" icon="calendar-outline" theme={theme} />
           </SectionCard>
 
           {/* Address */}
           <SectionCard title="Address" icon="location-outline" theme={theme}>
+            <Field label="Street Address" value={street} onChangeText={setStreet} multiline icon="home-outline" theme={theme} />
+            <Field label="City" value={city} onChangeText={setCity} icon="business-outline" theme={theme} />
+            <Field label="State / Province" value={state} onChangeText={setState} icon="map-outline" theme={theme} />
+            <Field label="Postal Code" value={postalCode} onChangeText={setPostalCode} keyboardType="numeric" icon="mail-outline" theme={theme} />
+            <Field label="Country" value={country} onChangeText={setCountry} icon="flag-outline" theme={theme} />
+          </SectionCard>
+
+          {/* Vehicle tab switcher — only shown if user has multiple vehicles */}
+          {vehicles.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 12 }}
+              contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}
+            >
+              {vehicles.map((v, index) => (
+                <TouchableOpacity
+                  key={v.id}
+                  onPress={() => setSelectedVehicleIndex(index)}
+                  style={[
+                    styles.vehicleTab,
+                    {
+                      borderColor:
+                        selectedVehicleIndex === index
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      backgroundColor:
+                        selectedVehicleIndex === index
+                          ? theme.colors.primary + "12"
+                          : "transparent",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="car-sport-outline"
+                    size={14}
+                    color={
+                      selectedVehicleIndex === index
+                        ? theme.colors.primary
+                        : theme.colors.textSecondary
+                    }
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color:
+                        selectedVehicleIndex === index
+                          ? theme.colors.primary
+                          : theme.colors.text,
+                    }}
+                  >
+                    {/* ✅ correct path: v.brand.name, not v.model.brand.name */}
+                    {v.brand?.name || ""} {v.model?.name || ""}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* Registration / Vehicle Info */}
+          <SectionCard title="Registration" icon="document-text-outline" theme={theme}>
+
+            {/* READ-ONLY: pre-filled from DB selection, user cannot change these here */}
             <Field
-              label="Street Address"
-              value={street}
-              onChangeText={setStreet}
-              multiline
-              icon="home-outline"
+              label="Vehicle Type"
+              value={displayVehicleType}
+              onChangeText={() => {}}
+              icon="car-outline"
+              editable={false}
               theme={theme}
             />
             <Field
-              label="City"
-              value={city}
-              onChangeText={setCity}
-              icon="business-outline"
+              label="Brand"
+              value={displayBrand}
+              onChangeText={() => {}}
+              icon="car-sport-outline"
+              editable={false}
               theme={theme}
             />
             <Field
-              label="State / Province"
-              value={state}
-              onChangeText={setState}
-              icon="map-outline"
+              label="Model"
+              value={displayModel}
+              onChangeText={() => {}}
+              icon="construct-outline"
+              editable={false}
               theme={theme}
             />
+
+            {/* EDITABLE: user can update these */}
             <Field
-              label="Postal Code"
-              value={postalCode}
-              onChangeText={setPostalCode}
+              label="Model Year"
+              value={modelYear}
+              onChangeText={(v) => setModelYear(v.replace(/[^0-9]/g, "").slice(0, 4))}
               keyboardType="numeric"
-              icon="mail-outline"
+              placeholder="e.g. 2023"
+              icon="calendar-outline"
               theme={theme}
             />
             <Field
-              label="Country"
-              value={country}
-              onChangeText={setCountry}
-              icon="flag-outline"
+              label="Registration Number"
+              value={registrationNumber}
+              onChangeText={setRegistrationNumber}
+              icon="card-outline"
               theme={theme}
             />
           </SectionCard>
 
-          {/* Vehicle Selector */}
-      {vehicles.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {vehicles.map((v, index) => (
-            <TouchableOpacity
-              key={v.id}
-              onPress={() => setSelectedVehicleIndex(index)}
-              style={{
-                padding: 8,
-                marginRight: 8,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor:
-                  selectedVehicleIndex === index
-                    ? theme.colors.primary
-                    : theme.colors.border,
-              }}
-            >
-              <Text style={{ color: theme.colors.text }}>
-              {v.model?.brand?.name || ""} {v.model?.name || ""}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-
-          {/* Registration */}
-      <SectionCard title="Registration" icon="document-text-outline" theme={theme}>
-        <Field
-          label="Registration Number"
-          value={registrationNumber}
-          onChangeText={setRegistrationNumber}
-          icon="card-outline"
-          theme={theme}
-        />
-
-        <Field
-          label="Vehicle Type"
-          value={vehicleType}
-          onChangeText={setVehicleType}
-          icon="car-outline"
-          theme={theme}
-        />
-
-        <Field
-          label="Brand"
-          value={brand}
-          onChangeText={setBrand}
-          icon="car-sport-outline"
-          theme={theme}
-        />
-
-        <Field
-          label="Model"
-          value={model}
-          onChangeText={setModel}
-          icon="construct-outline"
-          theme={theme}
-        />
-
-        <Field
-          label="Model Year"
-          value={modelYear}
-          onChangeText={setModelYear}
-          keyboardType="numeric"
-          icon="calendar-outline"
-          theme={theme}
-        />
-      </SectionCard>
-
           {/* Save button at bottom */}
           <TouchableOpacity
-            style={[
-              styles.saveBtn,
-              { backgroundColor: theme.colors.primary },
-              saving && { opacity: 0.7 },
-            ]}
+            style={[styles.saveBtn, { backgroundColor: theme.colors.primary }, saving && { opacity: 0.7 }]}
             onPress={handleSave}
             disabled={saving}
             activeOpacity={0.85}
@@ -488,40 +448,53 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", minWidth: 60 },
   backLabel: { fontSize: 16, marginLeft: 2 },
   headerTitle: { fontSize: 17, fontWeight: "700" },
-  saveLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    minWidth: 60,
-    textAlign: "right",
+  saveLabel: { fontSize: 15, fontWeight: "600", minWidth: 60, textAlign: "right" },
+
+  scroll: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 8 },
+
+  // Avatar
+  avatarWrap: { alignItems: "center", marginBottom: 24, marginTop: 8 },
+  avatar: { width: 90, height: 90, borderRadius: 45 },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  scroll: {
-    paddingHorizontal: 16,
-    paddingBottom: 48,
-    paddingTop: 8,
+  avatarInitials: { fontSize: 28, fontWeight: "800" },
+  camerabage: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  camerabage: {}, // overridden below
+  // (defining the real one properly:)
+  camerabage: {
+    position: "absolute",
+    bottom: 2,
+    right: "30%",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Sections
   sectionWrap: { marginBottom: 20 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    marginLeft: 4,
-  },
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8, marginLeft: 4 },
   sectionTitle: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  card: {
-    borderRadius: 14,
-    borderWidth: 0.5,
-    overflow: "hidden",
-    paddingHorizontal: 14,
-  },
-  fieldWrap: {
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-  },
-  fieldLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
+  card: { borderRadius: 14, borderWidth: 0.5, overflow: "hidden", paddingHorizontal: 14 },
+
+  // Fields
+  fieldWrap: { paddingVertical: 12, borderBottomWidth: 0.5 },
+  fieldLabelRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
   fieldLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 0.3 },
   input: {
     borderWidth: 1,
@@ -530,6 +503,18 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === "ios" ? 10 : 8,
     fontSize: 15,
   },
+
+  // Vehicle tabs
+  vehicleTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+
+  // Save
   saveBtn: {
     borderRadius: 14,
     paddingVertical: 15,

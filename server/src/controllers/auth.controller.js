@@ -209,89 +209,59 @@ export const addVehicle = async (req, res, next) => {
       vehicleType = "car",
       brandName,
       modelName,
+      modelYear,       // ✅ year the user typed e.g. "2023"
       fuelType,
       transmission,
       registration,
     } = req.body;
 
-    console.log("👉 REQ BODY:", req.body);
-
     // 1. Find vehicle type
     const type = await prisma.vehicleType.findFirst({
-      where: {
-        name: {
-          equals: vehicleType,
-          mode: "insensitive",
-        },
-      },
+      where: { name: { equals: vehicleType, mode: "insensitive" } },
     });
+    if (!type) return res.status(400).json({ success: false, message: "Invalid vehicle type" });
 
-    if (!type) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid vehicle type",
-      });
-    }
-
-    // 2. Find brand (by NAME ✅)
+    // 2. Find brand
     const brand = await prisma.brand.findFirst({
-      where: {
-        name: {
-          equals: brandName,
-          mode: "insensitive",
-        },
-      },
+      where: { name: { equals: brandName, mode: "insensitive" } },
     });
+    if (!brand) return res.status(400).json({ success: false, message: "Brand not found" });
 
-    if (!brand) {
-      return res.status(400).json({
-        success: false,
-        message: "Brand not found",
-      });
-    }
-
-    // 3. Find model (by NAME + brandId ✅)
+    // 3. Find model
     const model = await prisma.model.findFirst({
-      where: {
-        brandId: brand.id,
-        name: {
-          equals: modelName,
-          mode: "insensitive",
-        },
-      },
+      where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
     });
+    if (!model) return res.status(400).json({ success: false, message: "Model not found" });
 
-    if (!model) {
-      return res.status(400).json({
-        success: false,
-        message: "Model not found",
-      });
+    // 4. Create ModelYear if year provided → copy id into Vehicle
+    let modelYearId = null;
+    if (modelYear) {
+      const parsedYear = parseInt(modelYear.toString().match(/\d{4}/)?.[0]);
+      if (parsedYear) {
+        const createdYear = await prisma.modelYear.create({
+          data: {
+            modelId: model.id,   // ✅ which model
+            year: parsedYear,    // ✅ user entered year
+          },
+        });
+        modelYearId = createdYear.id; // ✅ copy id
+      }
     }
 
-    // 4. Create vehicle
+    // 5. Create vehicle — paste modelYearId
     const vehicle = await prisma.vehicle.create({
       data: {
-        user: {
-          connect: { id: req.user.id },
-        },
-        vehicleType: {
-          connect: { id: type.id },
-        },
-        brand: {
-          connect: { id: brand.id },
-        },
-        model: {
-          connect: { id: model.id },
-        },
+        user: { connect: { id: req.user.id } },
+        vehicleType: { connect: { id: type.id } },
+        brand: { connect: { id: brand.id } },
+        model: { connect: { id: model.id } },
+        ...(modelYearId ? { modelYear: { connect: { id: modelYearId } } } : {}),
         fuelType: fuelType ?? null,
         registration: registration ?? null,
       },
     });
 
-    return res.status(201).json({
-      success: true,
-      data: vehicle,
-    });
+    return res.status(201).json({ success: true, data: vehicle });
   } catch (err) {
     console.error("❌ Vehicle create error:", err);
     next(err);
@@ -409,94 +379,60 @@ export const getVehicles = async (req, res, next) => {
 export const updateVehicle = async (req, res, next) => {
   try {
     const { id } = req.params;
-
-    const {
-      vehicleType,
-      brandName,
-      modelName,
-      modelYear,
-      registration,
-    } = req.body;
+    const { vehicleType, brandName, modelName, modelYear, registration } = req.body;
 
     // 1. Check ownership
     const vehicle = await prisma.vehicle.findFirst({
-      where: {
-        id,
-        userId: req.user.id,
-      },
+      where: { id, userId: req.user.id },
     });
+    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
 
-    if (!vehicle) {
-      return res.status(404).json({ message: "Vehicle not found" });
-    }
+    // 2. Only update fields that were sent
+    const updateData = {};
+    if (registration !== undefined) updateData.registration = registration;
 
-    // 2. Resolve relations
-    const type = await prisma.vehicleType.findFirst({
-      where: {
-        name: { equals: vehicleType, mode: "insensitive" },
-      },
-    });
-
-    const brand = await prisma.brand.findFirst({
-      where: {
-        name: { equals: brandName, mode: "insensitive" },
-      },
-    });
-
-    const model = await prisma.model.findFirst({
-      where: {
-        brandId: brand?.id,
-        name: { equals: modelName, mode: "insensitive" },
-      },
-    });
-
-    if (!type || !brand || !model) {
-      return res.status(400).json({
-        message: "Invalid vehicle data",
+    // 3. Resolve relations only if all three provided
+    if (vehicleType && brandName && modelName) {
+      const type = await prisma.vehicleType.findFirst({
+        where: { name: { equals: vehicleType, mode: "insensitive" } },
       });
-    }
+      const brand = await prisma.brand.findFirst({
+        where: { name: { equals: brandName, mode: "insensitive" } },
+      });
+      const model = await prisma.model.findFirst({
+        where: { brandId: brand?.id, name: { equals: modelName, mode: "insensitive" } },
+      });
 
-    let yearId = null;
+      if (!type || !brand || !model) {
+        return res.status(400).json({ message: "Invalid vehicle data" });
+      }
 
-    if (modelYear) {
-      const extractedYear = modelYear.toString().match(/\d{4}/);
-      if (extractedYear) {
-        const parsedYear = parseInt(extractedYear[0]);
+      updateData.vehicleTypeId = type.id;
+      updateData.brandId = brand.id;
+      updateData.modelId = model.id;
 
-        const upsertedYear = await prisma.modelYear.upsert({
-          where: {
-            modelId_year: {
-              modelId: model.id,
-              year: parsedYear,
+      // 4. Create new ModelYear if year provided → copy id
+      if (modelYear) {
+        const parsedYear = parseInt(modelYear.toString().match(/\d{4}/)?.[0]);
+        if (parsedYear) {
+          const createdYear = await prisma.modelYear.create({
+            data: {
+              modelId: model.id,  // ✅ which model
+              year: parsedYear,   // ✅ user entered year
             },
-          },
-          update: {},
-          create: {
-            modelId: model.id,
-            year: parsedYear,
-          },
-        });
-
-        yearId = upsertedYear.id;
+          });
+          updateData.modelYearId = createdYear.id; // ✅ copy id → paste
+        }
       }
     }
 
-    // 3. Update
+    // 5. Update vehicle
     const updatedVehicle = await prisma.vehicle.update({
       where: { id },
-      data: {
-        vehicleTypeId: type.id,
-        brandId: brand.id,
-        modelId: model.id,
-        modelYearId: yearId,
-        registration,
-      },
+      data: updateData,
     });
 
-    res.json({
-      success: true,
-      data: updatedVehicle,
-    });
+    res.json({ success: true, data: updatedVehicle });
   } catch (err) {
     next(err);
   }
@@ -618,6 +554,32 @@ export const uploadProfileImage = async (req, res, next) => {
       success: true,
       message: "Image stored in DB",
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─────────────────────────────────────────────
+// DELETE /vehicles/:id  — remove a vehicle
+// ─────────────────────────────────────────────
+export const deleteVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Ownership check
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id, userId: req.user.id },
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    await prisma.vehicle.delete({
+      where: { id },
+    });
+
+    res.json({ success: true, message: "Vehicle removed successfully" });
   } catch (err) {
     next(err);
   }
