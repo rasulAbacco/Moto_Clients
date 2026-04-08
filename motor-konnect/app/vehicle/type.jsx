@@ -9,6 +9,10 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
+// 1. Import useNavigation to check history
+import { useNavigation } from "@react-navigation/native";
+// 2. Import useSafeAreaInsets for precise positioning
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 const VEHICLES = [
@@ -38,6 +42,10 @@ const VEHICLES = [
 
 export default function VehicleTypeScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  // 3. Get insets to handle Notch/Status Bar safely
+  const insets = useSafeAreaInsets();
+
   const [selected, setSelected] = useState(null);
 
   const handleContinue = () => {
@@ -48,6 +56,23 @@ export default function VehicleTypeScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#F2F3F7" />
+
+      {/* 4. Conditionally render Back Button with Safe Positioning */}
+      {navigation.canGoBack() && (
+        <TouchableOpacity
+          style={[
+            styles.backButton,
+            { top: insets.top + 10 }, // Pushes it down safely below the notch
+          ]}
+          onPress={() => router.back()}
+        >
+          <Ionicons
+            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
+            size={24}
+            color="#374151"
+          />
+        </TouchableOpacity>
+      )}
 
       <View style={styles.container}>
         {/* Step Tracker */}
@@ -200,6 +225,27 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 16 : 16,
     paddingBottom: 32,
     justifyContent: "center",
+  },
+
+  // Back Button Style
+  backButton: {
+    position: "absolute",
+    left: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+    // Shadow for the floating button
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
 
   // Step tracker

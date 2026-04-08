@@ -9,37 +9,93 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCart } from "../src/hooks/useCart";
+import { useAuth } from "../src/providers/AuthProvider";
+import api from "../src/services/apiClient";
 
 export default function ServiceConfirmScreen() {
   const { cartItems, clearCart } = useCart();
+  const { user } = useAuth();
   const router = useRouter();
+
   const { garageId, name } = useLocalSearchParams();
+
+  // ==============================
+  // DEBUG LOGS (VERY IMPORTANT)
+  // ==============================
+  console.log("🧾 CART ITEMS:", cartItems);
+  console.log("🏠 GARAGE PARAMS:", { garageId, name });
+  console.log("👤 USER:", user);
 
   const total = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
 
-  const handleConfirm = () => {
-    // 🔧 CRM API integration later
-    console.log("BOOKING PAYLOAD:", {
-      garageId,
-      services: cartItems,
-      type: "service_booking",
-    });
+  // ==============================
+  // 🔥 BOOKING FUNCTION
+  // ==============================
+  const handleConfirm = async () => {
+    try {
+      console.log("🚀 CONFIRM BUTTON CLICKED");
 
-    clearCart();
+      const selectedService = cartItems[0];
 
-    Alert.alert(
-      "Booking Confirmed 🚗",
-      "Your request has been sent to the garage. They will contact you shortly.",
-      [
+      console.log("📦 SELECTED SERVICE:", selectedService);
+
+      // ✅ VALIDATION
+      if (!selectedService) {
+        console.log("❌ No service in cart");
+        return Alert.alert("Error", "Cart is empty");
+      }
+
+      if (!selectedService.slug) {
+        console.log("❌ Missing slug in cart item:", selectedService);
+        return Alert.alert("Error", "Service mapping missing (slug)");
+      }
+
+      if (!garageId) {
+        console.log("❌ Missing garageId");
+        return Alert.alert("Error", "Garage not selected");
+      }
+
+      if (!user?.id) {
+        console.log("❌ Missing user");
+        return Alert.alert("Error", "User not logged in");
+      }
+
+      const payload = {
+        externalServiceId: selectedService.slug, // 🔥 KEY FIX
+        garageId: Number(garageId),
+        clientId: user.id,
+        scheduledAt: new Date().toISOString(),
+        carType: "SUV",
+      };
+
+      console.log("📤 FINAL BOOKING PAYLOAD:", payload);
+
+      // ==============================
+      // API CALL
+      // ==============================
+      const res = await api.post("/marketplace/book", payload);
+
+      console.log("✅ BOOKING SUCCESS:", res.data);
+
+      clearCart();
+
+      Alert.alert("Booking Confirmed 🚗", "Garage has received your request.", [
         {
           text: "OK",
           onPress: () => router.replace("/(tabs)/services"),
         },
-      ],
-    );
+      ]);
+    } catch (err) {
+      console.log("❌ BOOKING ERROR:", err?.response?.data || err.message);
+
+      Alert.alert(
+        "Booking Failed",
+        err?.response?.data?.message || "Something went wrong",
+      );
+    }
   };
 
   return (
@@ -52,7 +108,7 @@ export default function ServiceConfirmScreen() {
       {/* Garage */}
       <View style={styles.section}>
         <Text style={styles.label}>Selected Garage</Text>
-        <Text style={styles.value}>{name}</Text>
+        <Text style={styles.value}>{name || "N/A"}</Text>
       </View>
 
       {/* Services */}
@@ -81,10 +137,10 @@ export default function ServiceConfirmScreen() {
         <Text style={styles.total}>₹{total}</Text>
       </View>
 
-      {/* Info Box */}
+      {/* Info */}
       <View style={styles.infoBox}>
         <Text style={styles.infoText}>
-          💡 No online payment required. Pay directly after service completion.
+          💡 No online payment required. Pay after service completion.
         </Text>
       </View>
 

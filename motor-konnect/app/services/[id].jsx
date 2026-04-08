@@ -1,3 +1,4 @@
+//app/services/[id].jsx
 import {
   View,
   Text,
@@ -154,7 +155,8 @@ function ServiceCard({ service, onPress, index }) {
                 title: service.name,
                 price: finalPrice,
                 image: service.image || null,
-                source: "service", // ✅ IMPORTANT
+                source: "service",
+                slug: service.slug,
               })
             }
             style={[styles.addBtn, isAdded && styles.addedBtn]}
@@ -189,7 +191,15 @@ function Section({ section, sectionIndex, router }) {
           key={service.id}
           service={service}
           index={sectionIndex * 8 + idx}
-          onPress={() => router.push(`/sub-service/${service.id}`)}
+          onPress={() =>
+            router.push({
+              pathname: "/sub-service/[id]",
+              params: {
+                id: service.id, // keep for existing UI
+                externalServiceId: service.slug, // 🔥 VERY IMPORTANT
+              },
+            })
+          }
         />
       ))}
     </View>

@@ -1,3 +1,4 @@
+// app/sub-service/[id].jsx
 import {
   View,
   Text,
@@ -92,7 +93,9 @@ export default function SubServiceDetails() {
     setLoading(true);
     setError(false);
     try {
-      const res = await api.get(`/sub-services/${id}`);
+      const res = await api.get(
+        `/marketplace/services/${service.slug}/garages`,
+      );
       setService(res.data);
     } catch (err) {
       console.log("DETAIL ERROR:", err.message);
@@ -515,7 +518,14 @@ export default function SubServiceDetails() {
         <TouchableOpacity
           style={[styles.bookBtn, { backgroundColor: theme.colors.primary }]}
           activeOpacity={0.88}
-          onPress={() => router.push(`/book/${service.id}`)}
+          onPress={() =>
+            router.push({
+              pathname: "/book",
+              params: {
+                externalServiceId: service.slug,
+              },
+            })
+          }
         >
           <Ionicons name="calendar-outline" size={18} color="#fff" />
           <Text style={styles.bookBtnText}>Book Now</Text>

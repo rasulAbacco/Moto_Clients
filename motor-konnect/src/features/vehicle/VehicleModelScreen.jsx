@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../../../src/hooks/useTheme";
+import { useTheme } from "../../hooks/useTheme.js";
 import { useEffect, useState } from "react";
 import api from "../../services/apiClient.js";
 
@@ -32,13 +32,13 @@ export default function VehicleModelScreen() {
     if (brandId) {
       fetchModels();
     }
- }, [brandId]);
+  }, [brandId]);
 
   const fetchModels = async () => {
     try {
       const res = await api.get(`/vehicles/models/${brandId}`, {
-      params: { type },
-    });
+        params: { type },
+      });
 
       setModels(res.data);
     } catch (err) {
@@ -52,11 +52,11 @@ export default function VehicleModelScreen() {
     router.push({
       pathname: "/vehicle/specs",
       params: {
-      type,
-      brandId,
-      brandData,
-      model: JSON.stringify(model),
-    },
+        type,
+        brandId,
+        brandData,
+        model: JSON.stringify(model),
+      },
     });
   };
 

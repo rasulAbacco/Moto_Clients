@@ -23,15 +23,15 @@ export const getProfile = async (req, res, next) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-const { address, ...rest } = user;
+    const { address, ...rest } = user;
 
-res.json({
-  success: true,
-  data: {
-    ...rest,
-    address: address ?? {},
-  },
-});
+    res.json({
+      success: true,
+      data: {
+        ...rest,
+        address: address ?? {},
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -58,23 +58,15 @@ export const getProfileImage = async (req, res) => {
 // ─────────────────────────────────────────────
 export const updateProfile = async (req, res, next) => {
   try {
-    const {
-      name,
-      email,
-      dob,
-      company,
-      taxNumber,
-      address,
-    } = req.body;
+    const { name, email, dob, company, taxNumber, address } = req.body;
 
     // Build user update payload (only include defined fields)
     const userUpdateData = {};
     if (name !== undefined) userUpdateData.name = name;
     if (email !== undefined) userUpdateData.email = email;
     if (dob !== undefined) userUpdateData.dob = dob;
-   if (company !== undefined) userUpdateData.company = company;
+    if (company !== undefined) userUpdateData.company = company;
     if (taxNumber !== undefined) userUpdateData.taxNumber = taxNumber;
-   
 
     // Upsert address if provided
     if (address) {
@@ -410,13 +402,8 @@ export const updateVehicle = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const {
-      vehicleType,
-      brandName,
-      modelName,
-      modelYear,
-      registration,
-    } = req.body;
+    const { vehicleType, brandName, modelName, modelYear, registration } =
+      req.body;
 
     // 1. Check ownership
     const vehicle = await prisma.vehicle.findFirst({
@@ -515,7 +502,9 @@ export const getVehicleById = async (req, res, next) => {
     });
     if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
     res.json({ success: true, data: vehicle });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const addGuestVehicle = async (req, res, next) => {
@@ -609,7 +598,7 @@ export const uploadProfileImage = async (req, res, next) => {
     const user = await prisma.user.update({
       where: { id: req.user.id },
       data: {
-        profileImage: req.file.buffer,       // ✅ binary
+        profileImage: req.file.buffer, // ✅ binary
         profileImageType: req.file.mimetype, // ✅ type
       },
     });

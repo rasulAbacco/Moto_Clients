@@ -4,7 +4,7 @@ import { useTheme } from "../../../hooks/useTheme.js";
 import { useEffect, useState } from "react";
 import { getSelectedVehicle } from "../../vehicle/vehicle.service.js";
 import { useRouter } from "expo-router";
-import LocationModal from "./LocationModal";
+import LocationModal from "./LocationModal.jsx";
 import * as Location from "expo-location";
 
 export default function HomeHeader() {

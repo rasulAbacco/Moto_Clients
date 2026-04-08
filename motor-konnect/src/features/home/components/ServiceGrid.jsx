@@ -8,7 +8,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme.js";
 import { useRouter } from "expo-router";
-import SectionHeader from "./SectionHeader";
+import SectionHeader from "./SectionHeader.jsx";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 32 - 12) / 2; // 2 cols, 16px side padding, 12px gap

@@ -17,37 +17,43 @@ export default function ServiceGarageScreen() {
 
   const [garages, setGarages] = useState([]);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    console.log("SCREEN LOADED"); // 👈 ADD
+    console.log("SCREEN LOADED");
     fetchGarages();
   }, []);
+
   const fetchGarages = async () => {
+    console.log("FETCH STARTED");
+
     try {
-      const res = await axios.get(
-        `${process.env.EXPO_PUBLIC_API_URL}/external/users`,
-        {
-          headers: {
-            "x-api-key": process.env.EXPO_PUBLIC_API_KEY,
-          },
+      const url = `${process.env.EXPO_PUBLIC_API_URL}/external/users`;
+
+      console.log("API URL:", url);
+
+      const res = await axios.get(url, {
+        headers: {
+          "x-api-key": process.env.EXPO_PUBLIC_API_KEY,
         },
-      );
+        timeout: 10000,
+      });
 
-      console.log("GARAGES RAW:", res.data.data);
+      console.log("RESPONSE RECEIVED");
 
-      // ✅ Filter only CAR garages (adjust later if needed)
-      const filtered = res.data.data;
-
-      setGarages(filtered);
+      if (res?.data?.success) {
+        setGarages(res.data.data || []);
+      } else {
+        console.log("Invalid response");
+        setGarages([]);
+      }
     } catch (err) {
-      console.log("Garage fetch error:", err.message);
+      console.log("ERROR FULL:", err);
+      console.log("ERROR MESSAGE:", err.message);
     } finally {
+      console.log("FETCH FINISHED");
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchGarages();
-  }, []);
 
   const renderItem = ({ item }) => (
     <TouchableOpacity

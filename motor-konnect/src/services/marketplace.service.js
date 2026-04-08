@@ -7,3 +7,8 @@ export const getMarketplaceServices = (vehicleType) => {
     `${ENDPOINTS.MARKETPLACE.SERVICES}?vehicleType=${vehicleType}`,
   );
 };
+
+export const getServices = async () => {
+  const res = await api.get("/marketplace/services");
+  return res.data;
+};

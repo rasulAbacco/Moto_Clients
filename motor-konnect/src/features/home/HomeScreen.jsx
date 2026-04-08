@@ -1,3 +1,4 @@
+// HomeScreen.jsx
 import { Animated, StyleSheet, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";

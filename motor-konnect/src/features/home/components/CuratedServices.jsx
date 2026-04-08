@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../../../hooks/useTheme.js";
 import { useRouter } from "expo-router";
-import SectionHeader from "./SectionHeader";
+import SectionHeader from "./SectionHeader.jsx";
 
 const { width } = Dimensions.get("window");
 
