@@ -10,7 +10,7 @@ router.get("/external/users", async (req, res) => {
       {
         headers: {
           "x-api-key": "your_super_secret_key_here",
-        },
+        },  
       },
     );
 
