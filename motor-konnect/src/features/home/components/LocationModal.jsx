@@ -33,10 +33,27 @@ export default function LocationModal({
   const fetchLocation = async () => {
     setLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      // ✅ Check existing permission status first (important on iOS)
+      const { status: existingStatus } =
+        await Location.getForegroundPermissionsAsync();
 
-      if (status !== "granted") {
-        setAddress("Location permission denied");
+      let finalStatus = existingStatus;
+
+      // Only request if not already determined
+      if (existingStatus !== "granted") {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        // ✅ On iOS, if denied, prompt user to open Settings
+        if (Platform.OS === "ios") {
+          setAddress(
+            "Location access denied. Please enable it in Settings → Privacy → Location Services.",
+          );
+        } else {
+          setAddress("Location permission denied.");
+        }
         setLoading(false);
         return;
       }
@@ -51,7 +68,6 @@ export default function LocationModal({
       });
 
       if (geo) {
-        // ✅ FULL detailed address (same like SOS)
         const formatted = [
           geo.name,
           geo.street,
@@ -68,7 +84,7 @@ export default function LocationModal({
         setAddress(formatted);
       }
     } catch (e) {
-      setAddress("Unable to fetch location");
+      setAddress("Unable to fetch location.");
     } finally {
       setLoading(false);
     }
@@ -134,9 +150,7 @@ export default function LocationModal({
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text
-                  style={[styles.cityName, { color: theme.colors.text }]}
-                >
+                <Text style={[styles.cityName, { color: theme.colors.text }]}>
                   Current Location
                 </Text>
 

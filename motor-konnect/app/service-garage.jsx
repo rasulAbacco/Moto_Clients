@@ -14,7 +14,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const BASE_URL = "https://cqw6v494-8000.inc1.devtunnels.ms/api/v1";
+const BASE_URL = "https://ld3bgq17-8000.inc1.devtunnels.ms/api/v1";
 
 export default function ServiceGarageScreen() {
   const router = useRouter();
@@ -57,7 +57,8 @@ export default function ServiceGarageScreen() {
   const renderItem = ({ item, index }) => {
     // ✅ Try every possible id field the API might return
     // After you see the log above, replace this with the correct field
-    const garageId = item.id ?? item.userId ?? item._id ?? item.garageId ?? index;
+    const garageId =
+      item.id ?? item.userId ?? item._id ?? item.garageId ?? index;
     const uniqueKey = String(garageId) + "_" + index; // guaranteed unique even if id missing
 
     return (
@@ -67,14 +68,16 @@ export default function ServiceGarageScreen() {
           router.push({
             pathname: "/service-confirm",
             params: {
-              garageId: garageId,       // CRM User.id integer
+              garageId: garageId, // CRM User.id integer
               name: item.companyName,
             },
           })
         }
       >
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{item.companyName || item.name || "Garage"}</Text>
+          <Text style={styles.name}>
+            {item.companyName || item.name || "Garage"}
+          </Text>
           <Text style={styles.meta}>{item.address || "No address"}</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color="#555" />
@@ -105,8 +108,8 @@ export default function ServiceGarageScreen() {
           item.id != null
             ? String(item.id)
             : item.userId != null
-            ? String(item.userId)
-            : String(index)
+              ? String(item.userId)
+              : String(index)
         }
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16 }}
