@@ -59,72 +59,145 @@ export default function ServiceConfirmScreen() {
     return res.data.data.clientId; // integer
   };
 
-  const handleConfirm = async () => {
-    try {
-      setConfirming(true);
 
-      const selectedService = cartItems[0];
+// const handleConfirm = async () => {
+//   try {
+//     setConfirming(true);
 
-      if (!selectedService) {
-        return Alert.alert("Error", "Cart is empty");
-      }
+//     if (!cartItems || cartItems.length === 0) {
+//       return Alert.alert("Error", "Cart is empty");
+//     }
 
-      // ✅ FIX 2: slug is undefined in cart items — fall back to item.id
-      // item.id = App DB service UUID e.g. "77913a96-b0f4-4b5e-b3fd-f33878e13ff4"
-      // CRM MarketplaceService.externalServiceId must have this same UUID stored.
-      // Permanent fix: pass slug when calling addToCart() in your services screen.
-      const externalServiceId = selectedService.slug || selectedService.id;
+//     if (!garageId) {
+//       return Alert.alert("Error", "Garage not selected");
+//     }
 
-      if (!externalServiceId) {
-        return Alert.alert("Error", "Service ID missing. Please re-add to cart.");
-      }
+//     if (!user?.phone) {
+//       return Alert.alert("Error", "Your account is missing a phone number");
+//     }
 
-      if (!garageId) {
-        return Alert.alert("Error", "Garage not selected");
-      }
+//     // Resolve CRM clientId once — same client for all bookings
+//     const clientId = await resolveCrmClientId();
 
-      if (!user?.phone) {
-        return Alert.alert("Error", "Your account is missing a phone number");
-      }
+//     // Send one booking per cart item
+//     const results = await Promise.allSettled(
+//       cartItems.map((item) => {
+//         const externalServiceId = item.slug || item.id;
 
-      // ✅ FIX 3: resolve integer CRM clientId
-      const clientId = await resolveCrmClientId();
+//         if (!externalServiceId) return Promise.reject(new Error("Service ID missing"));
 
-      // ── Final payload the CRM /marketplace/book expects ───────
-      const payload = {
-        externalServiceId,            // string — links App service → CRM MarketplaceService
-        garageId: Number(garageId),   // integer — CRM User.id (fixed in GarageScreen)
-        clientId,                     // integer — CRM Client.id (resolved above)
-        scheduledAt: new Date().toISOString(),
-        carType: selectedService.carType || "SEDAN",
-         serviceName: selectedService.title, 
-      };
+//         const payload = {
+//           externalServiceId,
+//           garageId: Number(garageId),
+//           clientId,
+//           scheduledAt: new Date().toISOString(),
+//           carType: item.carType || "SEDAN",
+//           serviceName: item.title,
+//           appPrice: item.price,
+//           totalCartPrice: total,
+//         };
 
-      console.log("📤 Sending booking to CRM:", payload);
+//         console.log("📤 Sending booking:", payload);
 
-      const res = await axios.post(`${BASE_URL}/marketplace/book`, payload);
+//         return axios.post(`${BASE_URL}/marketplace/book`, payload);
+//       })
+//     );
 
-      console.log("✅ CRM booking response:", res.data);
+//     // Check results
+//     const failed = results.filter((r) => r.status === "rejected");
+//     const succeeded = results.filter((r) => r.status === "fulfilled");
 
-      clearCart();
+//     console.log(`✅ ${succeeded.length} bookings confirmed, ❌ ${failed.length} failed`);
 
-      Alert.alert(
-        "Booking Confirmed 🚗",
-        "Garage has received your request.",
-        [{ text: "OK", onPress: () => router.replace("/(tabs)/services") }]
-      );
-    } catch (err) {
-      console.error("❌ Booking error:", err?.response?.data || err.message);
-      Alert.alert(
-        "Booking Failed",
-        err?.response?.data?.message || "Something went wrong"
-      );
-    } finally {
-      setConfirming(false);
+//     clearCart();
+
+//     if (failed.length === 0) {
+//       Alert.alert(
+//         "Booking Confirmed 🚗",
+//         `${succeeded.length} service${succeeded.length > 1 ? "s" : ""} booked. Garage has received your request.`,
+//         [{ text: "OK", onPress: () => router.replace("/(tabs)/services") }]
+//       );
+//     } else {
+//       Alert.alert(
+//         "Partially Confirmed ⚠️",
+//         `${succeeded.length} booked, ${failed.length} failed. Please try again for failed services.`,
+//         [{ text: "OK", onPress: () => router.replace("/(tabs)/services") }]
+//       );
+//     }
+//   } catch (err) {
+//     console.error("❌ Booking error:", err?.response?.data || err.message);
+//     Alert.alert(
+//       "Booking Failed",
+//       err?.response?.data?.message || "Something went wrong"
+//     );
+//   } finally {
+//     setConfirming(false);
+//   }
+// };
+const handleConfirm = async () => {
+  try {
+    setConfirming(true);
+
+    if (!cartItems || cartItems.length === 0) {
+      return Alert.alert("Error", "Cart is empty");
     }
-  };
 
-  return (
+    if (!garageId) {
+      return Alert.alert("Error", "Garage not selected");
+    }
+
+    if (!user?.phone) {
+      return Alert.alert("Error", "Your account is missing a phone number");
+    }
+
+    const clientId = await resolveCrmClientId();
+
+    // ← Send ONE booking with combined service names and total price
+    const serviceNames = cartItems.map((i) => i.title).join(", ");
+    const totalPrice = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    // Use first item's ID as primary externalServiceId
+    const primaryItem = cartItems[0];
+    const externalServiceId = primaryItem.slug || primaryItem.id;
+
+    if (!externalServiceId) {
+      return Alert.alert("Error", "Service ID missing. Please re-add to cart.");
+    }
+
+    const payload = {
+      externalServiceId,
+      garageId: Number(garageId),
+      clientId,
+      scheduledAt: new Date().toISOString(),
+      carType: primaryItem.carType || "SEDAN",
+      serviceName: serviceNames,   // ← all service names combined
+      appPrice: totalPrice,        // ← total cart price
+    };
+
+    console.log("📤 Sending booking to CRM:", payload);
+
+    const res = await axios.post(`${BASE_URL}/marketplace/book`, payload);
+
+    console.log("✅ CRM booking response:", res.data);
+
+    clearCart();
+
+    Alert.alert(
+      "Booking Confirmed 🚗",
+      "Garage has received your request.",
+      [{ text: "OK", onPress: () => router.replace("/(tabs)/services") }]
+    );
+  } catch (err) {
+    console.error("❌ Booking error:", err?.response?.data || err.message);
+    Alert.alert(
+      "Booking Failed",
+      err?.response?.data?.message || "Something went wrong"
+    );
+  } finally {
+    setConfirming(false);
+  }
+};  
+return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Confirm Booking</Text>
