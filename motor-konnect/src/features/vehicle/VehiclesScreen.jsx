@@ -16,6 +16,28 @@ import { useEffect, useState } from "react";
 import { useTheme } from "../../hooks/useTheme";
 import api from "../../services/apiClient.js";
 
+// Segment badge color map
+const SEGMENT_COLOR = {
+  HATCHBACK:    { bg: "#e0f2fe", text: "#0369a1" },
+  SEDAN:        { bg: "#f0fdf4", text: "#15803d" },
+  SUV:          { bg: "#fef9c3", text: "#a16207" },
+  LUXURY:       { bg: "#f3e8ff", text: "#7e22ce" },
+  SUPER_LUXURY: { bg: "#fce7f3", text: "#be185d" },
+  PICKUP:       { bg: "#ffedd5", text: "#c2410c" },
+  VAN:          { bg: "#f1f5f9", text: "#475569" },
+};
+
+const SegmentBadge = ({ segment }) => {
+  if (!segment) return null;
+  const colors = SEGMENT_COLOR[segment] || { bg: "#f1f5f9", text: "#475569" };
+  const label = segment.replace("_", " ");
+  return (
+    <View style={[styles.segmentBadge, { backgroundColor: colors.bg }]}>
+      <Text style={[styles.segmentText, { color: colors.text }]}>{label}</Text>
+    </View>
+  );
+};
+
 export default function VehiclesScreen() {
   const { theme } = useTheme();
   const router = useRouter();
@@ -23,8 +45,11 @@ export default function VehiclesScreen() {
   const [loading, setLoading] = useState(true);
 
   // Delete confirmation state
-  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Primary setting state
+  const [settingPrimary, setSettingPrimary] = useState(null); // vehicle id
 
   useEffect(() => {
     fetchVehicles();
@@ -38,6 +63,21 @@ export default function VehiclesScreen() {
       console.log("Vehicles fetch error:", err.response?.data || err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSetPrimary = async (vehicleId) => {
+    setSettingPrimary(vehicleId);
+    try {
+      await api.patch(`/auth/vehicles/${vehicleId}/primary`);
+      // Update local state — unset all, set this one
+      setVehicles((prev) =>
+        prev.map((v) => ({ ...v, isPrimary: v.id === vehicleId }))
+      );
+    } catch (err) {
+      console.log("Set primary error:", err.response?.data || err.message);
+    } finally {
+      setSettingPrimary(null);
     }
   };
 
@@ -130,10 +170,21 @@ export default function VehiclesScreen() {
                 styles.vehicleCard,
                 {
                   backgroundColor: theme.colors.card || theme.colors.surface || "#fff",
-                  borderColor: theme.colors.border,
+                  borderColor: vehicle.isPrimary
+                    ? theme.colors.primary
+                    : theme.colors.border,
+                  borderWidth: vehicle.isPrimary ? 1.5 : 0.5,
                 },
               ]}
             >
+              {/* Primary Badge */}
+              {vehicle.isPrimary && (
+                <View style={[styles.primaryBanner, { backgroundColor: theme.colors.primary }]}>
+                  <Ionicons name="star" size={11} color="#fff" />
+                  <Text style={styles.primaryBannerText}>Primary Vehicle</Text>
+                </View>
+              )}
+
               {/* Vehicle Hero */}
               <View
                 style={[
@@ -153,12 +204,16 @@ export default function VehiclesScreen() {
                   <Ionicons name="car-sport-outline" size={36} color={theme.colors.primary} />
                 </View>
                 <View style={styles.heroText}>
-                  <Text style={[styles.heroName, { color: theme.colors.text }]}>
-                    {vehicle.brand?.name || "—"} {vehicle.model?.name || "—"}
-                  </Text>
+                  <View style={styles.heroNameRow}>
+                    <Text style={[styles.heroName, { color: theme.colors.text }]}>
+                      {vehicle.brand?.name || "—"} {vehicle.model?.name || "—"}
+                    </Text>
+                  </View>
                   <Text style={[styles.heroSub, { color: theme.colors.textSecondary }]}>
                     {vehicle.vehicleType?.name || "—"} · {vehicle.modelYear?.year || "—"}
                   </Text>
+                  {/* Segment Badge */}
+                  <SegmentBadge segment={vehicle.model?.segment} />
                 </View>
                 {vehicle.registration && (
                   <View style={[styles.regBadge, { backgroundColor: theme.colors.primary }]}>
@@ -173,6 +228,11 @@ export default function VehiclesScreen() {
                 <InfoRow icon="car-sport-outline" label="Brand" value={vehicle.brand?.name} />
                 <InfoRow icon="construct-outline" label="Model" value={vehicle.model?.name} />
                 <InfoRow
+                  icon="albums-outline"
+                  label="Segment"
+                  value={vehicle.model?.segment?.replace("_", " ") || "—"}
+                />
+                <InfoRow
                   icon="calendar-outline"
                   label="Model Year"
                   value={vehicle.modelYear?.year?.toString()}
@@ -181,15 +241,54 @@ export default function VehiclesScreen() {
                 <InfoRow icon="card-outline" label="Registration" value={vehicle.registration} />
               </View>
 
-              {/* Delete Button */}
-              <TouchableOpacity
-                style={[styles.deleteBtn, { borderTopColor: theme.colors.border }]}
-                onPress={() => confirmDelete(vehicle)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                <Text style={styles.deleteBtnText}>Remove Vehicle</Text>
-              </TouchableOpacity>
+              {/* Actions Row */}
+              <View style={[styles.actionsRow, { borderTopColor: theme.colors.border }]}>
+                {/* Set as Primary */}
+                {!vehicle.isPrimary && (
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryBtn,
+                      { borderColor: theme.colors.primary, flex: 1 },
+                    ]}
+                    onPress={() => handleSetPrimary(vehicle.id)}
+                    disabled={settingPrimary === vehicle.id}
+                    activeOpacity={0.7}
+                  >
+                    {settingPrimary === vehicle.id ? (
+                      <ActivityIndicator size="small" color={theme.colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="star-outline" size={15} color={theme.colors.primary} />
+                        <Text style={[styles.primaryBtnText, { color: theme.colors.primary }]}>
+                          Set as Primary
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {vehicle.isPrimary && (
+                  <View style={[styles.primaryActivePill, { flex: 1 }]}>
+                    <Ionicons name="star" size={14} color={theme.colors.primary} />
+                    <Text style={[styles.primaryActiveText, { color: theme.colors.primary }]}>
+                      Primary
+                    </Text>
+                  </View>
+                )}
+
+                {/* Divider */}
+                <View style={[styles.actionDivider, { backgroundColor: theme.colors.border }]} />
+
+                {/* Delete */}
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => confirmDelete(vehicle)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                  <Text style={styles.deleteBtnText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
         </ScrollView>
@@ -207,12 +306,9 @@ export default function VehiclesScreen() {
           onPress={() => !deleting && setDeleteTarget(null)}
         >
           <Pressable style={[styles.modalSheet, { backgroundColor: theme.colors.card || theme.colors.surface || "#fff" }]}>
-            {/* Icon */}
             <View style={styles.modalIconWrap}>
               <Ionicons name="trash-outline" size={28} color="#ef4444" />
             </View>
-
-            {/* Text */}
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Remove Vehicle?
             </Text>
@@ -223,8 +319,6 @@ export default function VehiclesScreen() {
               </Text>
               {" "}from your account? This action cannot be undone.
             </Text>
-
-            {/* Actions */}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[
@@ -235,11 +329,8 @@ export default function VehiclesScreen() {
                 disabled={deleting}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.modalCancelText, { color: theme.colors.text }]}>
-                  Cancel
-                </Text>
+                <Text style={[styles.modalCancelText, { color: theme.colors.text }]}>Cancel</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[styles.modalDeleteBtn, deleting && { opacity: 0.6 }]}
                 onPress={handleDelete}
@@ -295,7 +386,24 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   scroll: { padding: 16, paddingBottom: 48, gap: 16 },
-  vehicleCard: { borderRadius: 16, borderWidth: 0.5, overflow: "hidden" },
+
+  vehicleCard: { borderRadius: 16, overflow: "hidden" },
+
+  // Primary banner strip at top of card
+  primaryBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  primaryBannerText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+
   heroCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -311,11 +419,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  heroText: { flex: 1 },
+  heroText: { flex: 1, gap: 4 },
+  heroNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   heroName: { fontSize: 15, fontWeight: "700" },
-  heroSub: { fontSize: 12, marginTop: 2 },
+  heroSub: { fontSize: 12 },
+
+  // Segment badge
+  segmentBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  segmentText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" },
+
   regBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   regBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
+
   specsWrap: {},
   infoRow: {
     flexDirection: "row",
@@ -330,20 +451,39 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 10, fontWeight: "500", marginBottom: 1 },
   infoValue: { fontSize: 13, fontWeight: "600" },
 
-  // Delete button at bottom of card
-  deleteBtn: {
+  // Bottom actions row
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: 0.5,
+  },
+  primaryBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     paddingVertical: 13,
-    borderTopWidth: 0.5,
+    borderWidth: 0,
   },
-  deleteBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#ef4444",
+  primaryBtnText: { fontSize: 13, fontWeight: "600" },
+  primaryActivePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 13,
   },
+  primaryActiveText: { fontSize: 13, fontWeight: "600" },
+  actionDivider: { width: 0.5, height: 36 },
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+  },
+  deleteBtnText: { fontSize: 13, fontWeight: "600", color: "#ef4444" },
 
   // Modal
   modalOverlay: {
@@ -370,18 +510,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   modalTitle: { fontSize: 20, fontWeight: "800", letterSpacing: -0.3 },
-  modalSub: {
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: "center",
-    paddingHorizontal: 8,
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-    width: "100%",
-  },
+  modalSub: { fontSize: 14, lineHeight: 22, textAlign: "center", paddingHorizontal: 8 },
+  modalActions: { flexDirection: "row", gap: 12, marginTop: 8, width: "100%" },
   modalCancelBtn: {
     flex: 1,
     paddingVertical: 14,

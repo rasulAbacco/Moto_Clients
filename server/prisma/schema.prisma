@@ -83,6 +83,7 @@ model Vehicle {
   modelYearId   String?
   registration  String?
   fuelType      String?
+  isPrimary     Boolean @default(false) // ✅ ADD THIS
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

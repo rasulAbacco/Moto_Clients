@@ -1,5 +1,13 @@
 // auth.controller.js
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import prisma from "../config/db.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const carsPath = path.join(__dirname, "../data/cars-data.json");
+const bikesPath = path.join(__dirname, "../data/bikes-data.json");
 
 // ─────────────────────────────────────────────
 // GET /me  — full profile with address + vehicles
@@ -263,10 +271,17 @@ export const addVehicle = async (req, res, next) => {
 // ─────────────────────────────────────────────
 // GET /vehicles  — list user's vehicles
 // ─────────────────────────────────────────────
+
 // export const getVehicles = async (req, res, next) => {
 //   try {
 //     const vehicles = await prisma.vehicle.findMany({
 //       where: { userId: req.user.id },
+//       include: {
+//         brand: true,
+//         model: true,
+//         vehicleType: true,
+//         modelYear: true,
+//       },
 //     });
 
 //     res.json({ success: true, data: vehicles });
@@ -280,94 +295,91 @@ export const getVehicles = async (req, res, next) => {
       where: { userId: req.user.id },
       include: {
         brand: true,
-        model: true,
         vehicleType: true,
         modelYear: true,
+        model: {
+          select: {
+            id: true,
+            name: true,
+            segment: true,
+            ModelYear: {
+              select: {
+                thumbnailUrl: true,
+                heroUrl: true,
+              },
+            },
+          },
+        },
       },
+      orderBy: [
+        { isPrimary: "desc" },
+        { createdAt: "desc" },
+      ],
     });
 
-    res.json({ success: true, data: vehicles });
+    // Load both JSON files once for thumbnail fallback
+    let carsJson = [];
+    let bikesJson = [];
+    try { carsJson = JSON.parse(fs.readFileSync(carsPath, "utf-8")); } catch (_) {}
+    try { bikesJson = JSON.parse(fs.readFileSync(bikesPath, "utf-8")); } catch (_) {}
+
+    const getJsonThumb = (vehicleTypeName, brandName, modelName) => {
+      const isBike =
+        vehicleTypeName?.toLowerCase().includes("bike") ||
+        vehicleTypeName?.toLowerCase().includes("motorcycle");
+      const jsonData = isBike ? bikesJson : carsJson;
+
+      const jsonBrand = jsonData.find((b) => {
+        const jName = (b.make || b.name || b.brand || "").toLowerCase();
+        const dbName = (brandName || "").toLowerCase();
+        return jName.includes(dbName) || dbName.includes(jName);
+      });
+
+      if (!jsonBrand?.models) return null;
+
+      const jsonModel = jsonBrand.models.find((m) => {
+        const jm = (m.name || "").toLowerCase();
+        const dm = (modelName || "").toLowerCase();
+        return jm.includes(dm) || dm.includes(jm);
+      });
+
+      return jsonModel?.thumbnailUrl || jsonModel?.heroUrl || null;
+    };
+
+    const enriched = vehicles.map((v) => {
+      const allYears = v.model?.ModelYear || [];
+
+      // 1. DB ModelYear thumbnails first
+      const dbThumb =
+        allYears.find((y) => y.thumbnailUrl)?.thumbnailUrl ||
+        allYears.find((y) => y.heroUrl)?.heroUrl ||
+        v.modelYear?.thumbnailUrl ||
+        v.modelYear?.heroUrl ||
+        null;
+
+      // 2. JSON fallback if DB has nothing (covers bikes + unseeded cars)
+      const finalThumb =
+        dbThumb ||
+        getJsonThumb(v.vehicleType?.name, v.brand?.name, v.model?.name) ||
+        null;
+
+      return {
+        ...v,
+        model: {
+          id: v.model?.id,
+          name: v.model?.name,
+          segment: v.model?.segment,
+          thumbnailUrl: finalThumb,
+        },
+      };
+    });
+
+    res.json({ success: true, data: enriched });
   } catch (err) {
     next(err);
   }
 };
-// export const updateVehicle = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
-//     const { vehicleType, brandSlug, modelSlug, modelYear, registration } = req.body;
 
-//     // 1. Find vehicle (ownership check)
-//     const vehicle = await prisma.vehicle.findFirst({
-//       where: {
-//         id,
-//         userId: req.user.id,
-//       },
-//     });
-
-//     if (!vehicle) {
-//       return res.status(404).json({ message: "Vehicle not found" });
-//     }
-
-//     // 2. Resolve relations
-//     const type = await prisma.vehicleType.findFirst({
-//       where: { name: { equals: vehicleType, mode: "insensitive" } },
-//     });
-
-//     const brand = await prisma.brand.findFirst({
-//       where: { name: { equals: brandSlug, mode: "insensitive" } },
-//     });
-
-//     const model = await prisma.model.findFirst({
-//       where: {
-//         name: { equals: modelSlug, mode: "insensitive" },
-//         brandId: brand?.id,
-//       },
-//     });
-
-//     // ✅ Validation
-//     if (!type || !brand || !model) {
-//       return res.status(400).json({
-//         message: "Invalid vehicle data",
-//       });
-//     }
-
-//    let yearId = null;
-
-// if (modelYear) {
-//   const extractedYear = modelYear?.toString().match(/\d{4}/);
-//   if (extractedYear) {
-//     const parsedYear = parseInt(extractedYear[0]);
-//     const upsertedYear = await prisma.modelYear.upsert({
-//       where: {
-//         modelId_year: { modelId: model.id, year: parsedYear },
-//       },
-//       update: {},
-//       create: { modelId: model.id, year: parsedYear },
-//     });
-//     yearId = upsertedYear.id;
-//   }
-// }
-
-//     // 3. Update vehicle
-//     const updatedVehicle = await prisma.vehicle.update({
-//       where: { id },
-//       data: {
-//         vehicleTypeId: type.id,
-//         brandId: brand.id,
-//         modelId: model.id,
-//         modelYearId: yearId,
-//         registration,
-//       },
-//     });
-
-//     res.json({
-//       success: true,
-//       data: updatedVehicle,
-//     });
-//   } catch (err) {
-//     next(err);
-//   }
-// };
 export const updateVehicle = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -574,6 +586,36 @@ export const deleteVehicle = async (req, res, next) => {
     });
 
     res.json({ success: true, message: "Vehicle removed successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+// PATCH /auth/vehicles/:id/primary — set one vehicle as primary
+export const setPrimaryVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Verify ownership
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id, userId: req.user.id },
+    });
+    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
+
+    // Unset all others first, then set this one
+    await prisma.$transaction([
+      prisma.vehicle.updateMany({
+        where: { userId: req.user.id },
+        data: { isPrimary: false },
+      }),
+      prisma.vehicle.update({
+        where: { id },
+        data: { isPrimary: true },
+      }),
+    ]);
+
+    res.json({ success: true, message: "Primary vehicle updated" });
   } catch (err) {
     next(err);
   }

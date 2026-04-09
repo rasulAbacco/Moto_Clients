@@ -119,20 +119,62 @@ export const getBrands = async (req, res) => {
 export const getModels = async (req, res) => {
   try {
     const { brandId } = req.params;
+    const { type = "car" } = req.query; // ✅ read vehicle type (car | bike)
 
+    // 1. DB models with their ModelYear thumbnails
     const models = await prisma.model.findMany({
       where: { brandId: String(brandId) },
       include: { ModelYear: true },
     });
 
+    // 2. Load JSON for the correct vehicle type
+    let jsonModels = []; // flat list: [{ name, thumbnailUrl }]
+    try {
+      const jsonData = getData(type); // reads cars-data.json or bikes-data.json
+
+      // Find the matching brand entry in JSON by looking up the brand name from DB
+      // We need the brand name — fetch it once
+      const brand = await prisma.brand.findUnique({
+        where: { id: String(brandId) },
+        select: { name: true },
+      });
+
+      if (brand) {
+        const jsonBrand = jsonData.find((b) => {
+          const jsonName = (b.make || b.name || b.brand || "").toLowerCase();
+          return jsonName.includes(brand.name.toLowerCase()) ||
+                 brand.name.toLowerCase().includes(jsonName);
+        });
+
+        if (jsonBrand?.models) {
+          jsonModels = jsonBrand.models.map((m) => ({
+            name: m.name || "",
+            thumbnailUrl: m.thumbnailUrl || m.heroUrl || null,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("❌ JSON read error in getModels:", err);
+    }
+
+    // 3. Merge: DB is source of truth for id/name; JSON fills in thumbnailUrl
     const formatted = models.map((m) => {
+      // DB thumbnail: pick from ModelYear rows
       const sortedYears = [...(m.ModelYear || [])].sort((a, b) => b.year - a.year);
-      const withImage = sortedYears.find((y) => y.thumbnailUrl && y.thumbnailUrl !== "");
+      const dbThumb = sortedYears.find((y) => y.thumbnailUrl && y.thumbnailUrl !== "")
+                        ?.thumbnailUrl || null;
+
+      // JSON thumbnail: fuzzy-match by name
+      const jsonMatch = jsonModels.find((j) =>
+        j.name.toLowerCase().includes(m.name.toLowerCase()) ||
+        m.name.toLowerCase().includes(j.name.toLowerCase())
+      );
+      const jsonThumb = jsonMatch?.thumbnailUrl || null;
 
       return {
-        id: m.id,           // ✅ modelId — needed for createModelYear
+        id: m.id,
         name: m.name,
-        thumbnailUrl: withImage?.thumbnailUrl || null,
+        thumbnailUrl: dbThumb || jsonThumb || null, // DB wins, JSON is fallback
       };
     });
 
