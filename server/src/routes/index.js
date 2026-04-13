@@ -5,7 +5,7 @@ import serviceRoutes from "./service.routes.js";
 import vehicleRoutes from "./vehicle.routes.js";
 import marketplaceRoutes from "./marketplace.routes.js";
 import externalProxyRoutes from "./externalProxyRoutes.js"
-
+import packageRoutes from "./package.routes.js";
 
 const router = express.Router();
 
@@ -15,5 +15,5 @@ router.use("/services", serviceRoutes);
 router.use("/vehicles", vehicleRoutes);
 router.use("/marketplace", marketplaceRoutes);
 router.use("/v1", externalProxyRoutes);
-
+router.use("/packages", packageRoutes);
 export default router;

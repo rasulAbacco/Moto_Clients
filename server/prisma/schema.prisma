@@ -232,6 +232,85 @@ model ModelYear {
   @@unique([modelId, year])
 }
 
+// --- CRM LOCAL SCHEMA UPDATES ---
+
+model MarketplaceService {
+  id                Int     @id @default(autoincrement())
+  externalServiceId String  @unique // 🔑 Stores the UUID from the App DB
+  name              String
+  description       String?
+  image             String?
+
+  // Relations
+  garageServices GarageMarketplaceService[]
+  packageItems   MarketplacePackageItem[]
+  bookings       MarketplaceBooking[]
+}
+
+model GarageMarketplaceService {
+  id        Int     @id @default(autoincrement())
+  userId    Int // The ID of the Garage User in your CRM
+  serviceId Int // References MarketplaceService.id (Internal)
+  isActive  Boolean @default(false)
+  duration  Int? // Optional: specific time for this garage
+
+  // Relations
+  service MarketplaceService     @relation(fields: [serviceId], references: [id])
+  pricing GarageServicePricing[]
+
+  @@unique([userId, serviceId])
+}
+
+model GarageServicePricing {
+  id              Int    @id @default(autoincrement())
+  garageServiceId Int
+  carType         String // 🔑 Matches VehicleSegment (SEDAN, SUV, etc.)
+  price           Float
+  discount        Float  @default(0)
+
+  // Relations
+  garageMarketplaceService GarageMarketplaceService @relation(fields: [garageServiceId], references: [id], onDelete: Cascade)
+}
+
+// Update your existing MarketplaceBooking model to include these snapshots
+model MarketplaceBooking {
+  id        Int @id @default(autoincrement())
+  serviceId Int
+  garageId  Int
+  clientId  Int
+
+  status      BookingStatus @default(PENDING)
+  scheduledAt DateTime
+
+  // Pricing Snapshots (Storage of what was paid)
+  carType    String?
+  finalPrice Float
+
+  service MarketplaceService @relation(fields: [serviceId], references: [id])
+}
+
+model MarketplacePackage {
+  id        Int      @id @default(autoincrement())
+  userId    Int // The Garage User ID
+  name      String
+  price     Float
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  items MarketplacePackageItem[]
+}
+
+model MarketplacePackageItem {
+  id          Int    @id @default(autoincrement())
+  packageId   Int
+  serviceId   Int // References MarketplaceService.id
+  serviceName String // Snapshot of name
+  basePrice   Float  @default(0)
+
+  package            MarketplacePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  marketplaceService MarketplaceService @relation(fields: [serviceId], references: [id])
+}
+
 enum Role {
   USER
   ADMIN
