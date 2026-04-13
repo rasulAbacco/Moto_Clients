@@ -9,7 +9,7 @@ import VehicleSelector from "./VehicleSelector";
 export default function SectionRenderer({ section }) {
   switch (section.type) {
     case "carousel":
-      return <PromoCarousel banners={PROMO_BANNERS} />;
+      return <PromoCarousel banners={section.data} />;
 
     case "services":
       return (

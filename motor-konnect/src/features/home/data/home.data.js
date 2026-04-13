@@ -1,3 +1,4 @@
+//home.data.js
 export const PROMO_BANNERS = [
   {
     id: "1",

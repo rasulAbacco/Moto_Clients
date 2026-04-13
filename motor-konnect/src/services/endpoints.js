@@ -16,5 +16,6 @@ export const ENDPOINTS = {
   },
   MARKETPLACE: {
     SERVICES: "/marketplace/services",
+    PACKAGES: "/packages",
   },
 };

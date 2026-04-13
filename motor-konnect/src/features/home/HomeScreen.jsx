@@ -1,4 +1,3 @@
-
 import { Animated, StyleSheet, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
@@ -19,22 +18,33 @@ export default function HomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [services, setServices] = useState([]);
+  const [packages, setPackages] = useState([]);
+
   const [selectedVehicleType, setSelectedVehicleType] = useState("Car");
 
   const { user } = useAuth();
   const { openLoginSheet } = useLoginSheet();
 
-  // Load services whenever vehicle type changes
   useEffect(() => {
     loadServices();
   }, [selectedVehicleType]);
 
   const loadServices = async () => {
     try {
-      const res = await api.get(`/services?vehicleType=${selectedVehicleType}`);
-      setServices(res.data);
+      const [serviceRes, packageRes] = await Promise.all([
+        api.get(`/services?vehicleType=${selectedVehicleType}`),
+        api.get(`/packages?vehicleType=${selectedVehicleType.toUpperCase()}`),
+      ]);
+
+      console.log("🚀 SERVICES:", serviceRes.data);
+      console.log("🚀 PACKAGES API:", packageRes.data);
+
+      setServices(serviceRes.data);
+      setPackages(packageRes.data?.data || []);
+
+      console.log("✅ PACKAGES STATE SET:", packageRes.data?.data);
     } catch (err) {
-      console.log("ERROR:", err);
+      console.log("❌ ERROR:", err);
     }
   };
 
@@ -51,37 +61,44 @@ export default function HomeScreen() {
   }, []);
 
   const sections = useMemo(() => {
+    console.log("📦 SECTIONS PACKAGES:", packages);
+
     return [
-      { id: "carousel", type: "carousel" },
+      // ✅ IMPORTANT FIX → pass data
+      { id: "carousel", type: "carousel", data: packages },
+
       {
         id: "vehicleSelector",
         type: "vehicleSelector",
         selected: selectedVehicleType,
         onChange: setSelectedVehicleType,
       },
+
       { id: "services", type: "services", data: services },
       { id: "membership", type: "membership" },
       { id: "curated", type: "curated" },
       { id: "assist", type: "assist" },
     ];
-  }, [services, selectedVehicleType]);
+  }, [services, packages, selectedVehicleType]);
 
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       edges={["top"]}
     >
-      {/* Search bar */}
       <StickyHeader scrollY={scrollY} />
 
       <Animated.FlatList
         data={sections}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.sectionWrapper}>
-            <SectionRenderer section={item} />
-          </View>
-        )}
+        renderItem={({ item }) => {
+          console.log("🎯 RENDER SECTION:", item.type, item.data);
+          return (
+            <View style={styles.sectionWrapper}>
+              <SectionRenderer section={item} />
+            </View>
+          );
+        }}
         ListHeaderComponent={
           <View style={styles.homeHeaderWrap}>
             <HomeHeader />
