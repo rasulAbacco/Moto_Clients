@@ -18,8 +18,31 @@ const FEATURES = [
 export default function AssistBanner() {
   const router = useRouter();
 
-  const handleCall = () => {
-    Linking.openURL("tel:+918000000000").catch(() => {});
+  // ✅ UPDATED CALL FUNCTION (WORKING)
+  const handleCall = async () => {
+    try {
+      const phoneNumber = "7204986825";
+      const url = `tel:${phoneNumber}`;
+
+      console.log("📞 Call button clicked");
+
+      const supported = await Linking.canOpenURL(url);
+
+      if (!supported) {
+        console.log("❌ Phone call not supported on this device");
+        return;
+      }
+
+      await Linking.openURL(url);
+      console.log("✅ Calling:", phoneNumber);
+    } catch (err) {
+      console.log("❌ Call failed:", err);
+    }
+  };
+
+  const handleNavigate = () => {
+    console.log("🚀 Navigating to SOS screen");
+    router.push("/sos");
   };
 
   return (
@@ -41,7 +64,7 @@ export default function AssistBanner() {
           <Text style={styles.subtitle}>24x7 Roadside Assistance</Text>
         </View>
 
-        {/* Call button */}
+        {/* ✅ CALL BUTTON FIXED */}
         <TouchableOpacity
           style={styles.callBtn}
           onPress={handleCall}
@@ -59,26 +82,24 @@ export default function AssistBanner() {
       <View style={styles.features}>
         {FEATURES.map((f) => (
           <View key={f.label} style={styles.feature}>
-            <View style={styles.featureIcon}>
-              <Ionicons name={f.icon} size={14} color="#94a3b8" />
-            </View>
+            <Ionicons name={f.icon} size={14} color="#94a3b8" />
             <Text style={styles.featureLabel}>{f.label}</Text>
           </View>
         ))}
       </View>
 
-      {/* Learn more */}
+      {/* Navigation */}
       <TouchableOpacity
         style={styles.learnMore}
-        onPress={() => router.push("/assist")}
+        onPress={handleNavigate}
         activeOpacity={0.8}
       >
-        <Text style={styles.learnMoreText}>View All Services</Text>
+        <Text style={styles.learnMoreText}>View All Emergency Services</Text>
         <Ionicons name="arrow-forward" size={13} color="#60a5fa" />
       </TouchableOpacity>
 
-      {/* Decorative */}
-      <View style={styles.decor} />
+      {/* ✅ FIXED DECOR (NO TOUCH BLOCK) */}
+      <View style={styles.decor} pointerEvents="none" />
     </LinearGradient>
   );
 }
@@ -93,6 +114,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 6,
+    marginBottom: 20,
   },
   topRow: {
     flexDirection: "row",
@@ -127,6 +149,8 @@ const styles = StyleSheet.create({
     color: "#94a3b8",
     fontSize: 13,
   },
+
+  // ✅ FIXED BUTTON PRIORITY
   callBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -135,22 +159,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 12,
+    zIndex: 10,
   },
+
   callText: {
     color: "#0f172a",
     fontWeight: "700",
     fontSize: 13,
   },
+
   divider: {
     height: 0.5,
     backgroundColor: "rgba(255,255,255,0.1)",
     marginVertical: 16,
   },
+
   features: {
     flexDirection: "row",
     gap: 10,
     marginBottom: 14,
   },
+
   feature: {
     flex: 1,
     flexDirection: "row",
@@ -161,25 +190,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
   },
-  featureIcon: {
-    // just for spacing
-  },
+
   featureLabel: {
     color: "#cbd5e1",
     fontSize: 11,
     fontWeight: "500",
     flex: 1,
   },
+
   learnMore: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
   },
+
   learnMoreText: {
     color: "#60a5fa",
     fontSize: 13,
     fontWeight: "600",
   },
+
   decor: {
     position: "absolute",
     right: -40,

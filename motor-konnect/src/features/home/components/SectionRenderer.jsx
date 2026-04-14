@@ -32,9 +32,6 @@ export default function SectionRenderer({ section }) {
         />
       );
 
-    case "membership":
-      return <MembershipCards />;
-
     case "curated":
       return <CuratedServices />;
 

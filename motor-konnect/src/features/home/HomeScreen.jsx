@@ -37,13 +37,13 @@ export default function HomeScreen() {
         api.get(`/packages?vehicleType=${selectedVehicleType.toUpperCase()}`),
       ]);
 
-      console.log("🚀 SERVICES:", serviceRes.data);
-      console.log("🚀 PACKAGES API:", packageRes.data);
+      // console.log("🚀 SERVICES:", serviceRes.data);
+      // console.log("🚀 PACKAGES API:", packageRes.data);
 
       setServices(serviceRes.data);
       setPackages(packageRes.data?.data || []);
 
-      console.log("✅ PACKAGES STATE SET:", packageRes.data?.data);
+      // console.log("✅ PACKAGES STATE SET:", packageRes.data?.data);
     } catch (err) {
       console.log("❌ ERROR:", err);
     }
@@ -96,7 +96,7 @@ export default function HomeScreen() {
 
       { id: "services", type: "services", data: services },
       { id: "membership", type: "membership" },
-      { id: "curated", type: "curated" },
+      { id: "curated", type: "curated", data: packages },
       { id: "assist", type: "assist" },
     ];
   }, [services, filteredServices,packages, selectedVehicleType, isSearching]);
@@ -117,7 +117,7 @@ export default function HomeScreen() {
         data={sections}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
-          console.log("🎯 RENDER SECTION:", item.type, item.data);
+          // console.log("🎯 RENDER SECTION:", item.type, item.data);
           return (
             <View style={styles.sectionWrapper}>
               <SectionRenderer section={item} />

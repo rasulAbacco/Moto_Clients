@@ -1,171 +1,198 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-} from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Animated, StyleSheet, Easing } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { useTheme } from "../../../hooks/useTheme.js";
-import { useRouter } from "expo-router";
 import SectionHeader from "./SectionHeader.jsx";
 
-const { width } = Dimensions.get("window");
-
-const CURATED = [
+const REVIEWS = [
   {
-    id: "1",
-    title: "AC Service & Repair",
-    tag: "Most Booked",
-    icon: "thermometer-outline",
-    gradient: ["#7c3aed", "#4f46e5"],
-    path: "/services/ac",
+    id: 1,
+    name: "Rahul Sharma",
+    rating: 5,
+    text: "Very smooth booking experience. Service was done on time.",
   },
   {
-    id: "2",
-    title: "Full Car Service",
-    tag: "Best Value",
-    icon: "settings-outline",
-    gradient: ["#7c3aed", "#4f46e5"],
-    path: "/services/full-service",
+    id: 2,
+    name: "Amit Verma",
+    rating: 5,
+    text: "Loved the doorstep service. Highly recommended!",
   },
   {
-    id: "3",
-    title: "Tyre Replacement",
-    tag: "Quick Fix",
-    icon: "ellipse-outline",
-    gradient: ["#7c3aed", "#4f46e5"],
-    path: "/services/tyre",
+    id: 3,
+    name: "Sneha Patil",
+    rating: 4,
+    text: "Booking was easy and quick. Good service.",
   },
   {
-    id: "4",
-    title: "Denting & Painting",
-    tag: "Top Rated",
-    icon: "color-palette-outline",
-    gradient: ["#7c3aed", "#4f46e5"],
-    path: "/services/denting",
+    id: 4,
+    name: "Rohit Kumar",
+    rating: 5,
+    text: "Best prices and very professional team.",
+  },
+  {
+    id: 5,
+    name: "Priya Nair",
+    rating: 5,
+    text: "AC service was excellent. Cooling improved a lot.",
+  },
+  {
+    id: 6,
+    name: "Kiran Reddy",
+    rating: 4,
+    text: "Good service and timely updates.",
   },
 ];
 
+const LOOP_DATA = [...REVIEWS, ...REVIEWS];
+const CARD_WIDTH = 190;
+const GAP = 15;
+const TOTAL_WIDTH = (CARD_WIDTH + GAP) * REVIEWS.length;
+
 export default function CuratedServices() {
-  const { theme } = useTheme();
-  const router = useRouter();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const currentOffset = useRef(0);
+  const pauseTimer = useRef(null);
+  const isAnimating = useRef(false);
+
+  // Track current position for seamless resume
+  useEffect(() => {
+    const listener = translateX.addListener(({ value }) => {
+      currentOffset.current = value;
+    });
+    return () => translateX.removeListener(listener);
+  }, []);
+
+  const startAnimation = (startVal) => {
+    if (isAnimating.current) return;
+    isAnimating.current = true;
+
+    const remaining = TOTAL_WIDTH + startVal;
+    const duration = (remaining / TOTAL_WIDTH) * 15000;
+
+    Animated.timing(translateX, {
+      toValue: -TOTAL_WIDTH,
+      duration: duration,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      isAnimating.current = false;
+      if (finished) {
+        translateX.setValue(0);
+        startAnimation(0);
+      }
+    });
+  };
+
+  useEffect(() => {
+    startAnimation(0);
+    return () => {
+      translateX.stopAnimation();
+      clearTimeout(pauseTimer.current);
+    };
+  }, []);
+
+  const handleTouchIn = () => {
+    translateX.stopAnimation();
+    isAnimating.current = false;
+
+    // Clear any existing timer
+    clearTimeout(pauseTimer.current);
+
+    // ✅ FORCE START after 10 seconds even if finger is still down
+    pauseTimer.current = setTimeout(() => {
+      startAnimation(currentOffset.current);
+    }, 10000);
+  };
+
+  const handleTouchOut = () => {
+    clearTimeout(pauseTimer.current);
+    // Resume immediately when finger is removed
+    startAnimation(currentOffset.current);
+  };
 
   return (
-    <View>
-      <SectionHeader title="Curated For You" seeAllPath="/services" />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+    <View style={styles.container}>
+      <SectionHeader title="Customer Reviews" />
+
+      <View
+        style={styles.scrollWrapper}
+        onTouchStart={handleTouchIn}
+        onTouchEnd={handleTouchOut}
       >
-        {CURATED.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            onPress={() => router.push(item.path)}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={item.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.card}
-            >
-              {/* Tag */}
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>{item.tag}</Text>
+        <Animated.View style={[styles.row, { transform: [{ translateX }] }]}>
+          {LOOP_DATA.map((item, index) => (
+            <View key={index} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.stars}>
+                  {[...Array(5)].map((_, i) => (
+                    <Ionicons
+                      key={i}
+                      name="star"
+                      size={12}
+                      color={i < item.rating ? "#EAB308" : "#CBD5E1"}
+                    />
+                  ))}
+                </View>
+                <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
               </View>
 
-              {/* Icon */}
-              <View style={styles.iconWrap}>
-                <Ionicons name={item.icon} size={28} color="#fff" />
-              </View>
-
-              {/* Title */}
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {item.title}
+              <Text style={styles.text} numberOfLines={3}>
+                "{item.text}"
               </Text>
 
-              {/* CTA */}
-              <View style={styles.cta}>
-                <Text style={styles.ctaText}>Book Now</Text>
-                <Ionicons name="arrow-forward" size={12} color="#fff" />
+              <View style={styles.footer}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.verified}>VERIFIED</Text>
               </View>
-
-              {/* Decor */}
-              <View style={styles.decor} />
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            </View>
+          ))}
+        </Animated.View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    gap: 12,
-    paddingRight: 4,
-  },
+  container: { marginVertical: 12 },
+  scrollWrapper: { overflow: "hidden", paddingVertical: 10 },
+  row: { flexDirection: "row", gap: GAP },
   card: {
-    width: 150,
-    height: 190,
-    borderRadius: 18,
-    padding: 14,
+    width: CARD_WIDTH,
+    height: 130,
+    borderRadius: 24,
+    padding: 18,
+    backgroundColor: "#FFFFFF",
     justifyContent: "space-between",
-    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  tag: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.25)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  tagText: {
-    color: "#fff",
-    fontSize: 9,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-  },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardTitle: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 19,
-  },
-  cta: {
+  cardHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 4,
   },
-  ctaText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 11,
-    fontWeight: "600",
+  stars: { flexDirection: "row", gap: 2 },
+  text: {
+    color: "#334155",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+    fontStyle: "italic",
   },
-  decor: {
-    position: "absolute",
-    right: -20,
-    bottom: -20,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.1)",
+  footer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  name: { color: "#1E293B", fontSize: 12, fontWeight: "700" },
+  verified: {
+    color: "#94A3B8",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 });
