@@ -18,11 +18,11 @@ export default function AccountMenuList() {
         //   icon: "settings-outline",
         //   path: "/preferences",
         // },
-        {
-          title: "Notifications",
-          icon: "notifications-outline",
-          path: "/notifications",
-        },
+        // {
+        //   title: "Notifications",
+        //   icon: "notifications-outline",
+        //   path: "/notifications",
+        // },
       ],
     },
     {
