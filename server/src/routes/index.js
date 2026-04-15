@@ -6,6 +6,8 @@ import vehicleRoutes from "./vehicle.routes.js";
 import marketplaceRoutes from "./marketplace.routes.js";
 import externalProxyRoutes from "./externalProxyRoutes.js"
 import packageRoutes from "./package.routes.js";
+import notificationRoutes from "./notification.routes.js";   // ← NEW
+
 
 const router = express.Router();
 
@@ -16,4 +18,5 @@ router.use("/vehicles", vehicleRoutes);
 router.use("/marketplace", marketplaceRoutes);
 router.use("/v1", externalProxyRoutes);
 router.use("/packages", packageRoutes);
+router.use("/notifications", notificationRoutes);
 export default router;
