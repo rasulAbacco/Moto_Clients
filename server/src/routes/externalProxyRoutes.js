@@ -72,17 +72,50 @@ router.post("/marketplace/book", async (req, res) => {
 router.get("/marketplace/my-bookings", async (req, res) => {
   try {
     const response = await axios.get(
-      `${CRM_API}/marketplace/my-bookings`,  // ← /api/marketplace/my-bookings
+      `${CRM_API}/marketplace/my-bookings`, // ← /api/marketplace/my-bookings
       { params: req.query },
     );
     return res.json(response.data);
   } catch (error) {
-    console.error("Proxy error /marketplace/my-bookings:", error?.response?.data || error.message);
+    console.error(
+      "Proxy error /marketplace/my-bookings:",
+      error?.response?.data || error.message,
+    );
     return res
       .status(error?.response?.status || 500)
-      .json(error?.response?.data || { success: false, message: "Failed to fetch bookings" });
+      .json(
+        error?.response?.data || {
+          success: false,
+          message: "Failed to fetch bookings",
+        },
+      );
+  }
+});
+
+// ── Notifications proxy ──
+// Forwards to CRM notification controller which reads AppNotification from MOTO_DB
+// Query params are passed through as-is (e.g. ?phone=919876543210)
+// GET /api/v1/notifications → CRM: /api/notifications
+router.get("/notifications", async (req, res) => {
+  try {
+    const response = await axios.get(`${CRM_API}/notifications`, {
+      params: req.query, // ← pass ?phone=... through
+    });
+    return res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Proxy error /notifications:",
+      error?.response?.data || error.message,
+    );
+    return res
+      .status(error?.response?.status || 500)
+      .json(
+        error?.response?.data || {
+          success: false,
+          message: "Failed to fetch notifications",
+        },
+      );
   }
 });
 
 export default router;
-
