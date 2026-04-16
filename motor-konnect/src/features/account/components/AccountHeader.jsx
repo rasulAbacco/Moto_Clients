@@ -13,6 +13,7 @@ import { AuthContext } from "../../../providers/AuthProvider";
 import { useRouter } from "expo-router";
 import api from "../../../services/apiClient";
 import { Buffer } from "buffer";
+import NotificationPanel from "./NotificationPanel";
 
 const { width } = Dimensions.get("window");
 
@@ -31,6 +32,7 @@ export default function AccountHeader() {
     : "?";
 
   const [imageUrl, setImageUrl] = useState(null);
+  const [notifVisible, setNotifVisible] = useState(false);
 
   useEffect(() => {
     const loadImage = async () => {
@@ -48,71 +50,76 @@ export default function AccountHeader() {
   }, [user]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.left}>
-        {/* Avatar */}
+    <>
+      <View style={styles.container}>
+        <View style={styles.left}>
+          {/* Avatar */}
+          <TouchableOpacity
+            onPress={() => router.push("/profile")}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.avatar,
+                { backgroundColor: theme.colors.primary + "20" },
+              ]}
+            >
+              {imageUrl ? (
+                <Image source={{ uri: imageUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.initials, { color: theme.colors.primary }]}>
+                  {initials}
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Name & phone */}
+          <View style={styles.textWrap}>
+            <Text
+              style={[styles.greeting, { color: theme.colors.textSecondary }]}
+            >
+              Welcome back 👋
+            </Text>
+            <Text
+              style={[styles.name, { color: theme.colors.text }]}
+              numberOfLines={1}
+            >
+              {user?.name || "Guest"}
+            </Text>
+            <Text style={[styles.phone, { color: theme.colors.textSecondary }]}>
+              {user?.phone || user?.email || ""}
+            </Text>
+          </View>
+        </View>
+
+        {/* Notification bell — opens panel instead of navigating */}
         <TouchableOpacity
-          onPress={() => router.push("/profile")}
+          style={[
+            styles.notifBtn,
+            { backgroundColor: theme.colors.card || theme.colors.surface },
+          ]}
+          onPress={() => setNotifVisible(true)}
           activeOpacity={0.8}
         >
+          <Ionicons
+            name="notifications-outline"
+            size={20}
+            color={theme.colors.text}
+          />
+          {/* Badge */}
           <View
-            style={[
-              styles.avatar,
-              { backgroundColor: theme.colors.primary + "20" },
-            ]}
-          >
-            {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
-                style={styles.avatarImage}
-              />
-            ) : (
-              <Text style={[styles.initials, { color: theme.colors.primary }]}>
-                {initials}
-              </Text>
-            )}
-          </View>
+            style={[styles.badge, { backgroundColor: theme.colors.primary }]}
+          />
         </TouchableOpacity>
-
-        {/* Name & phone */}
-        <View style={styles.textWrap}>
-          <Text
-            style={[styles.greeting, { color: theme.colors.textSecondary }]}
-          >
-            Welcome back 👋
-          </Text>
-          <Text
-            style={[styles.name, { color: theme.colors.text }]}
-            numberOfLines={1}
-          >
-            {user?.name || "Guest"}
-          </Text>
-          <Text style={[styles.phone, { color: theme.colors.textSecondary }]}>
-            {user?.phone || user?.email || ""}
-          </Text>
-        </View>
       </View>
 
-      {/* Notification bell */}
-      <TouchableOpacity
-        style={[
-          styles.notifBtn,
-          { backgroundColor: theme.colors.card || theme.colors.surface },
-        ]}
-        onPress={() => router.push("/notifications")}
-        activeOpacity={0.8}
-      >
-        <Ionicons
-          name="notifications-outline"
-          size={20}
-          color={theme.colors.text}
-        />
-        {/* Badge */}
-        <View
-          style={[styles.badge, { backgroundColor: theme.colors.primary }]}
-        />
-      </TouchableOpacity>
-    </View>
+      {/* Notification bottom-sheet */}
+      <NotificationPanel
+        visible={notifVisible}
+        onClose={() => setNotifVisible(false)}
+      />
+    </>
   );
 }
 
