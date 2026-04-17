@@ -178,7 +178,7 @@ model GarageService {
   garage  Garage  @relation(fields: [garageId], references: [id])
   service Service @relation(fields: [serviceId], references: [id])
 
-  pricing GarageServicePricing[] // 🔥 relation
+  pricing GarageServicePricing[] 
 
   @@unique([garageId, serviceId])
   @@index([serviceId])
@@ -232,10 +232,6 @@ model ModelYear {
 
   @@unique([modelId, year])
 }
-
-// --- CRM LOCAL SCHEMA UPDATES ---
-
-// --- CRM LOCAL SCHEMA UPDATES ---
 
 model MarketplaceService {
   id                Int     @id @default(autoincrement())

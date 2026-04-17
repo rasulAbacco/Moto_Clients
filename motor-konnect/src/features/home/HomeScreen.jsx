@@ -20,6 +20,10 @@ export default function HomeScreen() {
   const [services, setServices] = useState([]);
   const [packages, setPackages] = useState([]);
 
+  // ✅ NEW
+  const [garages, setGarages] = useState([]);
+  const [garageLoading, setGarageLoading] = useState(false);
+
   const [selectedVehicleType, setSelectedVehicleType] = useState("Car");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -28,6 +32,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadServices();
+    loadGarages(); // ✅ ADD
   }, [selectedVehicleType]);
 
   const loadServices = async () => {
@@ -37,21 +42,49 @@ export default function HomeScreen() {
         api.get(`/packages?vehicleType=${selectedVehicleType.toUpperCase()}`),
       ]);
 
-      // console.log("🚀 SERVICES:", serviceRes.data);
-      // console.log("🚀 PACKAGES API:", packageRes.data);
-
       setServices(serviceRes.data);
       setPackages(packageRes.data?.data || []);
-
-      // console.log("✅ PACKAGES STATE SET:", packageRes.data?.data);
     } catch (err) {
       console.log("❌ ERROR:", err);
     }
   };
 
+//  const BASE_URL = "https://cqw6v494-8000.inc1.devtunnels.ms/api/v1";
+ const BASE_URL = "https://ld3bgq17-8000.inc1.devtunnels.ms/api/v1";
+
+ const loadGarages = async () => {
+   try {
+     setGarageLoading(true);
+
+     const url = `${BASE_URL}/external/users`;
+
+     console.log("🚀 Fetching garages:", url);
+
+     const res = await fetch(url, {
+       method: "GET",
+       headers: {
+         "Content-Type": "application/json",
+         "x-api-key": process.env.EXPO_PUBLIC_API_KEY, // keep if required
+       },
+     });
+
+     const data = await res.json();
+
+     if (data?.success) {
+       setGarages(data.data || []);
+     } else {
+       setGarages([]);
+     }
+   } catch (err) {
+     console.log("❌ GARAGE ERROR:", err);
+   } finally {
+     setGarageLoading(false);
+   }
+ };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadServices();
+    await Promise.all([loadServices(), loadGarages()]); // ✅ update
     setRefreshing(false);
   };
 
@@ -61,7 +94,6 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // Filter services based on search query
   const filteredServices = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return services;
@@ -69,7 +101,7 @@ export default function HomeScreen() {
       (s) =>
         (s.name || "").toLowerCase().includes(q) ||
         (s.description || "").toLowerCase().includes(q) ||
-        (s.section?.name || "").toLowerCase().includes(q)
+        (s.section?.name || "").toLowerCase().includes(q),
     );
   }, [services, searchQuery]);
 
@@ -77,14 +109,10 @@ export default function HomeScreen() {
 
   const sections = useMemo(() => {
     if (isSearching) {
-      // When searching, only show the service grid (filtered)
-      return [
-        { id: "services", type: "services", data: filteredServices },
-      ];
+      return [{ id: "services", type: "services", data: filteredServices }];
     }
 
     return [
-      // ✅ IMPORTANT FIX → pass data
       { id: "carousel", type: "carousel", data: packages },
 
       {
@@ -95,11 +123,28 @@ export default function HomeScreen() {
       },
 
       { id: "services", type: "services", data: services },
+
+      // ✅ NEW GARAGE SECTION
+      {
+        id: "garages",
+        type: "garages",
+        data: garages,
+        loading: garageLoading,
+      },
+
       { id: "membership", type: "membership" },
       { id: "curated", type: "curated", data: packages },
       { id: "assist", type: "assist" },
     ];
-  }, [services, filteredServices,packages, selectedVehicleType, isSearching]);
+  }, [
+    services,
+    filteredServices,
+    packages,
+    garages,
+    garageLoading,
+    selectedVehicleType,
+    isSearching,
+  ]);
 
   return (
     <SafeAreaView
@@ -116,14 +161,11 @@ export default function HomeScreen() {
       <Animated.FlatList
         data={sections}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          // console.log("🎯 RENDER SECTION:", item.type, item.data);
-          return (
-            <View style={styles.sectionWrapper}>
-              <SectionRenderer section={item} />
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <View style={styles.sectionWrapper}>
+            <SectionRenderer section={item} />
+          </View>
+        )}
         ListHeaderComponent={
           !isSearching ? (
             <View style={styles.homeHeaderWrap}>
@@ -135,7 +177,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
+          { useNativeDriver: false },
         )}
         scrollEventThrottle={16}
         refreshControl={
