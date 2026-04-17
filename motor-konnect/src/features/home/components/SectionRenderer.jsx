@@ -3,8 +3,8 @@ import ServiceGrid from "./ServiceGrid";
 import MembershipCards from "./MembershipCards";
 import CuratedServices from "./CuratedServices";
 import AssistBanner from "./AssistBanner";
-import { PROMO_BANNERS } from "../data/home.data";
 import VehicleSelector from "./VehicleSelector";
+import GarageList from "./GarageList"; // ✅ NEW
 
 export default function SectionRenderer({ section }) {
   switch (section.type) {
@@ -31,6 +31,10 @@ export default function SectionRenderer({ section }) {
           onChange={section.onChange}
         />
       );
+
+    // ✅ NEW CASE
+    case "garages":
+      return <GarageList garages={section.data} loading={section.loading} />;
 
     case "curated":
       return <CuratedServices />;
