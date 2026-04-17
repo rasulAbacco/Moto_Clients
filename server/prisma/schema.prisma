@@ -175,10 +175,10 @@ model GarageService {
   garageId  String
   serviceId String
 
-  price Float? // vendor override price
-
   garage  Garage  @relation(fields: [garageId], references: [id])
   service Service @relation(fields: [serviceId], references: [id])
+
+  pricing GarageServicePricing[] // 🔥 relation
 
   @@unique([garageId, serviceId])
   @@index([serviceId])
@@ -235,42 +235,79 @@ model ModelYear {
 
 // --- CRM LOCAL SCHEMA UPDATES ---
 
+// --- CRM LOCAL SCHEMA UPDATES ---
+
 model MarketplaceService {
   id                Int     @id @default(autoincrement())
-  externalServiceId String  @unique // 🔑 Stores the UUID from the App DB
+  externalServiceId String  @unique
   name              String
   description       String?
   image             String?
 
-  // Relations
   garageServices GarageMarketplaceService[]
   packageItems   MarketplacePackageItem[]
   bookings       MarketplaceBooking[]
 }
 
 model GarageMarketplaceService {
-  id        Int     @id @default(autoincrement())
-  userId    Int // The ID of the Garage User in your CRM
-  serviceId Int // References MarketplaceService.id (Internal)
-  isActive  Boolean @default(false)
-  duration  Int? // Optional: specific time for this garage
+  id          Int                @id @default(autoincrement())
+  userId      Int
+  serviceId   Int
+  isActive    Boolean            @default(false)
+  duration    Int?
+  description String?
+  image       String?
+  service     MarketplaceService @relation(fields: [serviceId], references: [id])
 
-  // Relations
-  service MarketplaceService     @relation(fields: [serviceId], references: [id])
+  // ⚠️ kept as-is (even though not used now)
   pricing GarageServicePricing[]
 
   @@unique([userId, serviceId])
 }
 
 model GarageServicePricing {
-  id              Int    @id @default(autoincrement())
-  garageServiceId Int
-  carType         String // 🔑 Matches VehicleSegment (SEDAN, SUV, etc.)
-  price           Float
-  discount        Float  @default(0)
+  id Int @id @default(autoincrement())
 
-  // Relations
-  garageMarketplaceService GarageMarketplaceService @relation(fields: [garageServiceId], references: [id], onDelete: Cascade)
+  garageUserId      Int    @map("garage_user_id") // CRM User ID
+  externalServiceId String @map("external_service_id") // App DB Service UUID
+
+  carType  String @map("car_type")
+  price    Float  @default(0)
+  discount Float  @default(0)
+
+  description String?
+  image       String?
+
+  createdAt                  DateTime                  @default(now()) @map("created_at")
+  updatedAt                  DateTime                  @updatedAt @map("updated_at")
+  GarageService              GarageService?            @relation(fields: [garageServiceId], references: [id])
+  garageServiceId            String?
+  GarageMarketplaceService   GarageMarketplaceService? @relation(fields: [garageMarketplaceServiceId], references: [id])
+  garageMarketplaceServiceId Int?
+
+  @@unique([garageUserId, externalServiceId, carType])
+  @@index([externalServiceId])
+  @@index([garageUserId])
+  @@map("GarageServicePricing")
+}
+
+model GarageServiceMeta {
+  id Int @id @default(autoincrement())
+
+  garageUserId      Int    @map("garage_user_id")
+  externalServiceId String @map("external_service_id")
+
+  description String?
+  image       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  @@unique([garageUserId, externalServiceId])
+  @@index([garageUserId])
+  @@index([externalServiceId])
+
+  @@map("GarageServiceMeta")
 }
 
 // Update your existing MarketplaceBooking model to include these snapshots
