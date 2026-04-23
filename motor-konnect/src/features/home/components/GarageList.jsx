@@ -19,7 +19,7 @@ export default function GarageList({ garages, loading }) {
     return <Text style={{ textAlign: "center" }}>No garages found</Text>;
   }
 
-  // ✅ NEW: Get lowest price from nested services
+  // ✅ Get lowest price from nested services
   const getLowestPrice = (garage) => {
     if (!garage.services?.length) return null;
 
@@ -42,7 +42,6 @@ export default function GarageList({ garages, loading }) {
 
   const renderItem = ({ item }) => {
     const garageId = item.id ?? item.userId;
-
     const rating = item.avgRating ?? 4.0;
     const lowestPrice = getLowestPrice(item);
 
@@ -58,11 +57,9 @@ export default function GarageList({ garages, loading }) {
               garageName: item.companyName || item.name,
               services: JSON.stringify(item.services),
 
-              // ✅ ADD THIS (IMPORTANT)
-              garage: JSON.stringify({
-                id: garageId,
-                name: item.companyName || item.name,
-              }),
+              // ✅ FIXED: Pass the FULL item object
+              // This includes address, phone, and email from your API
+              garage: JSON.stringify(item),
             },
           })
         }

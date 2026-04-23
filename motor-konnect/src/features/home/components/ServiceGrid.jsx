@@ -27,10 +27,10 @@ export default function ServiceGrid() {
   const { theme } = useTheme();
   const router = useRouter();
 
-  // ✅ GET ALL DATA FROM PREVIOUS SCREEN
+  // ✅ RECEIVE DATA FROM PREVIOUS SCREEN (GarageList)
   const { garageId, garageName, services, garage } = useLocalSearchParams();
 
-  // parse services
+  // parse services for grid display
   let parsedServices = [];
   try {
     parsedServices = services ? JSON.parse(services) : [];
@@ -54,7 +54,7 @@ export default function ServiceGrid() {
         </Text>
       </View>
 
-      {/* Empty */}
+      {/* Empty State */}
       {!parsedServices.length ? (
         <Text style={styles.emptyText}>No services available</Text>
       ) : (
@@ -83,10 +83,11 @@ export default function ServiceGrid() {
                       mainService: JSON.stringify(main),
                       title: main.name,
 
-                      // 🔥 CRITICAL FIX
+                      // ✅ FORWARD FULL CONTEXT
+                      // These params ensure the next screen has everything needed for the cart
                       garageId: garageId,
                       garageName: garageName,
-                      garage: garage, // forward full object
+                      garage: garage, // Full stringified item (address, phone, email included)
                     },
                   })
                 }
@@ -142,19 +143,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 12,
   },
-
   emptyText: {
     textAlign: "center",
     marginTop: 20,
     opacity: 0.6,
   },
-
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
   },
-
   card: {
     width: CARD_SIZE,
     padding: 16,
@@ -162,7 +160,6 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     elevation: 3,
   },
-
   iconWrap: {
     width: 46,
     height: 46,
@@ -171,13 +168,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 12,
   },
-
   name: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 4,
   },
-
   arrow: {
     position: "absolute",
     top: 14,

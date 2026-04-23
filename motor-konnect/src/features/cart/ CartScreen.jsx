@@ -253,7 +253,7 @@ export default function CartScreen() {
   const deliveryFee = cartType === "service" ? 0 : total > 499 ? 0 : 49;
   const grandTotal = total + deliveryFee;
 
-  // Function to handle the actual navigation logic
+  // ✅ UPDATED: Function to handle the actual navigation logic
   const proceedToNextStep = () => {
     if (cartType === "service") {
       const serviceItem = cartItems.find((i) => i.source === "service");
@@ -263,11 +263,14 @@ export default function CartScreen() {
         return;
       }
 
+      // ✅ Pass the full garage metadata to the confirm screen
       router.push({
         pathname: "/service-confirm",
         params: {
           garageId: serviceItem.garageId,
           name: serviceItem.garageName,
+          // Stringify the full garage object (contains address, phone, email)
+          garage: JSON.stringify(serviceItem.garage),
         },
       });
     } else {

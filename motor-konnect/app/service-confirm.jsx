@@ -1,4 +1,4 @@
-//motor-konnect\app\service-confirm.jsx
+// motor-konnect\app\service-confirm.jsx
 
 import {
   View,
@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   BackHandler,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,16 +17,11 @@ import { useState, useEffect, useRef } from "react";
 import { useCart } from "../src/hooks/useCart";
 import { useAuth } from "../src/providers/AuthProvider";
 import axios from "axios";
+import { Ionicons } from "@expo/vector-icons";
 
 const BASE_URL = "https://cqw6v494-8000.inc1.devtunnels.ms/api/v1";
-const WAIT_SECONDS = 35; // poll window
-const POLL_INTERVAL_MS = 5000; // poll every 5s
-
-// ── Possible states after booking is sent ──
-// "waiting"  → countdown + polling
-// "accepted" → garage accepted
-// "rejected" → garage rejected
-// "timeout"  → 35s passed, no response yet
+const WAIT_SECONDS = 35;
+const POLL_INTERVAL_MS = 5000;
 
 export default function ServiceConfirmScreen() {
   const { cartItems, clearCart } = useCart();
@@ -33,22 +29,25 @@ export default function ServiceConfirmScreen() {
   const router = useRouter();
 
   const [confirming, setConfirming] = useState(false);
-  const [bookingState, setBookingState] = useState(null); // null | "waiting" | "accepted" | "rejected" | "timeout"
+  const [bookingState, setBookingState] = useState(null);
   const [countdown, setCountdown] = useState(WAIT_SECONDS);
-  const [bookingNotification, setBookingNotification] = useState(null); // the matched notification row
+  const [bookingNotification, setBookingNotification] = useState(null);
 
   const countdownRef = useRef(null);
   const pollRef = useRef(null);
-  const bookedAtRef = useRef(null); // ISO timestamp when booking was sent
+  const bookedAtRef = useRef(null);
 
-  const { garageId, name } = useLocalSearchParams();
+  // ✅ GET PARAMS
+  const { garageId, name, garage } = useLocalSearchParams();
+
+  // ✅ PARSE GARAGE OBJECT (for address, phone, email)
+  const garageData = garage ? JSON.parse(garage) : null;
 
   const total = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + item.price * (item.quantity || 1),
     0,
   );
 
-  // ── Block Android hardware back button while waiting ──
   useEffect(() => {
     if (bookingState !== "waiting") return;
     const subscription = BackHandler.addEventListener(
@@ -58,13 +57,10 @@ export default function ServiceConfirmScreen() {
     return () => subscription.remove();
   }, [bookingState]);
 
-  // ── Start countdown + polling once "waiting" state is entered ──
   useEffect(() => {
     if (bookingState !== "waiting") return;
-
     setCountdown(WAIT_SECONDS);
 
-    // ── Countdown timer ──
     countdownRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -75,16 +71,13 @@ export default function ServiceConfirmScreen() {
       });
     }, 1000);
 
-    // ── Polling for BOOKING_ACCEPTED / BOOKING_REJECTED notification ──
     const poll = async () => {
       try {
         const phone = user?.phone;
         if (!phone) return;
-
         const res = await axios.get(`${BASE_URL}/notifications`, {
           params: { phone },
         });
-
         if (!res.data?.success) return;
 
         const notifications = res.data.data || [];
@@ -92,20 +85,14 @@ export default function ServiceConfirmScreen() {
           ? new Date(bookedAtRef.current)
           : new Date(Date.now() - WAIT_SECONDS * 1000);
 
-        // Find the most recent booking notification that was created AFTER the booking was sent
         const match = notifications.find((n) => {
-          if (
-            n.type !== "BOOKING_ACCEPTED" &&
-            n.type !== "BOOKING_REJECTED"
-          ) {
+          if (n.type !== "BOOKING_ACCEPTED" && n.type !== "BOOKING_REJECTED")
             return false;
-          }
           const notifTime = new Date(n.createdAt);
           return notifTime >= bookedAt;
         });
 
         if (match) {
-          // Stop all timers immediately
           clearInterval(countdownRef.current);
           clearInterval(pollRef.current);
           setBookingNotification(match);
@@ -118,17 +105,14 @@ export default function ServiceConfirmScreen() {
       }
     };
 
-    // Run first poll right away, then every POLL_INTERVAL_MS
     poll();
     pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
-
     return () => {
       clearInterval(countdownRef.current);
       clearInterval(pollRef.current);
     };
   }, [bookingState]);
 
-  // ── When countdown hits 0 → timeout (no response received) ──
   useEffect(() => {
     if (bookingState === "waiting" && countdown === 0) {
       clearInterval(pollRef.current);
@@ -136,50 +120,30 @@ export default function ServiceConfirmScreen() {
     }
   }, [countdown, bookingState]);
 
-  // ─────────────────────────────────────────────────────────────
   const resolveCrmClientId = async () => {
     const res = await axios.post(`${BASE_URL}/marketplace/client-lookup`, {
       phone: user.phone,
       name: user.name,
       email: user.email || null,
     });
-    if (!res.data?.success || !res.data?.data?.clientId) {
+    if (!res.data?.success || !res.data?.data?.clientId)
       throw new Error("Could not resolve CRM client ID");
-    }
     return res.data.data.clientId;
   };
 
   const handleConfirm = async () => {
     try {
       setConfirming(true);
-
-      if (!cartItems || cartItems.length === 0) {
-        return Alert.alert("Error", "Cart is empty");
-      }
-      if (!garageId) {
-        return Alert.alert("Error", "Garage not selected");
-      }
-      if (!user?.phone) {
-        return Alert.alert("Error", "Your account is missing a phone number");
-      }
+      if (!cartItems.length) return Alert.alert("Error", "Cart is empty");
+      if (!garageId) return Alert.alert("Error", "Garage not selected");
+      if (!user?.phone) return Alert.alert("Error", "Missing phone number");
 
       const clientId = await resolveCrmClientId();
-
       const serviceNames = cartItems.map((i) => i.title).join(", ");
-      const totalPrice = cartItems.reduce(
-        (sum, i) => sum + i.price * i.quantity,
-        0,
-      );
-
       const primaryItem = cartItems[0];
       const externalServiceId = primaryItem.slug || primaryItem.id;
-
-      if (!externalServiceId) {
-        return Alert.alert("Error", "Service ID missing. Please re-add to cart.");
-      }
-
       const scheduledAt = new Date().toISOString();
-      bookedAtRef.current = scheduledAt; // save for notification filter
+      bookedAtRef.current = scheduledAt;
 
       const payload = {
         externalServiceId,
@@ -188,17 +152,13 @@ export default function ServiceConfirmScreen() {
         scheduledAt,
         carType: primaryItem.carType || "SEDAN",
         serviceName: serviceNames,
-        appPrice: totalPrice,
+        appPrice: total,
       };
 
-      console.log("📤 Sending booking to CRM:", payload);
-      const res = await axios.post(`${BASE_URL}/marketplace/book`, payload);
-      console.log("✅ CRM booking response:", res.data);
-
+      await axios.post(`${BASE_URL}/marketplace/book`, payload);
       clearCart();
-      setBookingState("waiting"); // ← switch to polling + countdown screen
+      setBookingState("waiting");
     } catch (err) {
-      console.error("❌ Booking error:", err?.response?.data || err.message);
       Alert.alert(
         "Booking Failed",
         err?.response?.data?.message || "Something went wrong",
@@ -209,173 +169,146 @@ export default function ServiceConfirmScreen() {
   };
 
   const goHome = () => {
-    clearInterval(countdownRef.current);
-    clearInterval(pollRef.current);
     router.replace("/(tabs)/home");
   };
-
   const goBack = () => {
-    clearInterval(countdownRef.current);
-    clearInterval(pollRef.current);
     router.back();
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // RESULT SCREEN — accepted / rejected / timeout
-  // ─────────────────────────────────────────────────────────────
-  if (
-    bookingState === "accepted" ||
-    bookingState === "rejected" ||
-    bookingState === "timeout"
-  ) {
+  // ── Result screens ──
+  if (["accepted", "rejected", "timeout"].includes(bookingState)) {
     const isAccepted = bookingState === "accepted";
     const isRejected = bookingState === "rejected";
-    const isTimeout = bookingState === "timeout";
-
     const iconChar = isAccepted ? "✓" : isRejected ? "✕" : "⏱";
-    const iconColor = isAccepted ? "#16a34a" : isRejected ? "#ef4444" : "#f97316";
-    const iconBg = isAccepted ? "#dcfce7" : isRejected ? "#fee2e2" : "#fff7ed";
-    const borderColor = iconColor;
-
-    const title = isAccepted
-      ? "Booking Accepted! 🎉"
-      : isRejected
-      ? "Booking Rejected"
-      : "No Response Yet";
-
-    const subtitle = isAccepted
-      ? "The garage has confirmed your appointment."
-      : isRejected
-      ? "The garage couldn't accept your request."
-      : "The garage hasn't responded within the wait time.";
-
-    const body = isAccepted
-      ? bookingNotification?.body ||
-        "Please arrive at the garage on time. Pay after service completion."
-      : isRejected
-      ? bookingNotification?.body ||
-        "You can try booking with a different garage."
-      : "Your booking request is still with the garage. You may check back later or try another garage.";
+    const color = isAccepted ? "#16a34a" : isRejected ? "#ef4444" : "#f97316";
 
     return (
       <SafeAreaView style={styles.waitingContainer}>
         <View
           style={[
             styles.iconCircle,
-            { backgroundColor: iconBg, borderColor },
+            { borderColor: color, backgroundColor: color + "10" },
           ]}
         >
-          <Text style={[styles.checkIcon, { color: iconColor }]}>
-            {iconChar}
-          </Text>
+          <Text style={[styles.checkIcon, { color }]}>{iconChar}</Text>
         </View>
-
-        <Text style={[styles.waitingTitle, { color: iconColor }]}>{title}</Text>
-        <Text style={styles.waitingSubtitle}>{subtitle}</Text>
-        <Text style={styles.waitingBody}>{body}</Text>
-
-        {bookingNotification?.garageName ? (
-          <Text style={styles.garageTag}>
-            🏪 {bookingNotification.garageName}
-          </Text>
-        ) : null}
-
+        <Text style={[styles.waitingTitle, { color }]}>
+          {isAccepted ? "Accepted!" : isRejected ? "Rejected" : "Timeout"}
+        </Text>
+        <Text style={styles.waitingBody}>
+          {bookingNotification?.body || "Update from garage received."}
+        </Text>
         <View style={styles.resultButtonRow}>
           <TouchableOpacity
             style={[styles.resultBtn, styles.outlineBtn]}
             onPress={goBack}
           >
-            <Text style={styles.outlineBtnText}>← Go Back</Text>
+            <Text style={styles.outlineBtnText}>Back</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.resultBtn, styles.homeBtn]} onPress={goHome}>
-            <Text style={styles.homeBtnText}>Go to Home</Text>
+          <TouchableOpacity
+            style={[styles.resultBtn, styles.homeBtn]}
+            onPress={goHome}
+          >
+            <Text style={styles.homeBtnText}>Home</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // WAITING SCREEN — countdown + polling spinner
-  // ─────────────────────────────────────────────────────────────
+  // ── Waiting screen ──
   if (bookingState === "waiting") {
     return (
       <SafeAreaView style={styles.waitingContainer}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.checkIcon}>✓</Text>
-        </View>
-
-        <Text style={styles.waitingTitle}>Booking Sent! 🚗</Text>
-
-        <Text style={styles.waitingSubtitle}>
-          Your request has been sent to the garage.
-        </Text>
-
-        <Text style={styles.waitingBody}>
-          Please wait while the garage reviews your appointment request. We'll
-          update you the moment they respond.
-        </Text>
-
         <View style={styles.countdownWrapper}>
           <Text style={styles.countdownNumber}>{countdown}</Text>
-          <Text style={styles.countdownLabel}>seconds</Text>
         </View>
-
-        <View style={styles.pollingRow}>
-          <ActivityIndicator size="small" color="#0062ff" />
-          <Text style={styles.pollingText}>Checking for garage response…</Text>
-        </View>
-
-        <Text style={styles.redirectNote}>
-          Result will appear here automatically
-        </Text>
+        <Text style={styles.waitingTitle}>Booking Sent!</Text>
+        <ActivityIndicator
+          size="large"
+          color="#0062ff"
+          style={{ marginVertical: 20 }}
+        />
+        <Text style={styles.waitingBody}>Waiting for garage response...</Text>
       </SafeAreaView>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // CONFIRM SCREEN — default
-  // ─────────────────────────────────────────────────────────────
+  // ── CONFIRM SCREEN ──
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={20} color="#000" />
+        </TouchableOpacity>
         <Text style={styles.title}>Confirm Booking</Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Selected Garage</Text>
-        <Text style={styles.value}>{name || "N/A"}</Text>
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* ✅ GARAGE INFORMATION SECTION */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="business" size={18} color="#0062ff" />
+            <Text style={styles.sectionTitle}>Garage Details</Text>
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Services</Text>
-        <FlatList
-          data={cartItems}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.itemRow}>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Name</Text>
+            <Text style={styles.value}>
+              {garageData?.companyName ||
+                garageData?.name ||
+                name ||
+                "Not Available"}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Address</Text>
+            <Text style={styles.value}>
+              {garageData?.address || "Not Available"}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Phone</Text>
+            <Text style={styles.value}>
+              {garageData?.phone || "Not Available"}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Email</Text>
+            <Text style={styles.value}>
+              {garageData?.email || "Not Available"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Services</Text>
+          {cartItems.map((item) => (
+            <View key={item.id} style={styles.itemRow}>
               <Text style={styles.itemName}>
-                {item.title} × {item.quantity}
+                {item.title} × {item.quantity || 1}
               </Text>
               <Text style={styles.itemPrice}>
-                ₹{item.price * item.quantity}
+                ₹{item.price * (item.quantity || 1)}
               </Text>
             </View>
-          )}
-        />
-      </View>
+          ))}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Estimated Cost</Text>
-        <Text style={styles.total}>₹{total}</Text>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.label}>Estimated Cost</Text>
+          <Text style={styles.total}>₹{total}</Text>
+        </View>
 
-      <View style={styles.infoBox}>
-        <Text style={styles.infoText}>
-          💡 No online payment required. Pay after service completion.
-        </Text>
-      </View>
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            💡 No online payment required. Pay at the garage.
+          </Text>
+        </View>
+      </ScrollView>
 
       <TouchableOpacity
         style={[styles.btn, confirming && { opacity: 0.6 }]}
@@ -393,128 +326,97 @@ export default function ServiceConfirmScreen() {
 }
 
 const styles = StyleSheet.create({
-  // ── Normal screen ──
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: { padding: 16, borderBottomWidth: 0.5, borderColor: "#ddd" },
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  header: {
+    padding: 16,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+  },
+  backBtn: { marginRight: 12 },
   title: { fontSize: 18, fontWeight: "700" },
-  section: { padding: 16, borderBottomWidth: 0.5, borderColor: "#eee" },
-  label: { fontSize: 12, color: "#666", marginBottom: 4 },
-  value: { fontSize: 15, fontWeight: "600" },
+  section: {
+    padding: 16,
+    backgroundColor: "#fff",
+    marginBottom: 10,
+    borderRadius: 12,
+    marginHorizontal: 12,
+    marginTop: 10,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#333" },
+  infoRow: { marginBottom: 10 },
+  label: { fontSize: 12, color: "#777", marginBottom: 2 },
+  value: { fontSize: 14, fontWeight: "600", color: "#111" },
   itemRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 6,
+    paddingVertical: 4,
   },
-  itemName: { fontSize: 14 },
-  itemPrice: { fontSize: 14, fontWeight: "600" },
-  total: { fontSize: 18, fontWeight: "700" },
+  itemName: { fontSize: 14, color: "#444" },
+  itemPrice: { fontSize: 14, fontWeight: "700" },
+  total: { fontSize: 22, fontWeight: "800", color: "#0062ff" },
   infoBox: {
     margin: 16,
     padding: 12,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#eef2ff",
     borderRadius: 10,
   },
-  infoText: { fontSize: 13, color: "#444" },
+  infoText: { fontSize: 13, color: "#4338ca", fontWeight: "500" },
   btn: {
     margin: 16,
     backgroundColor: "#0062ff",
-    padding: 14,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 12,
     alignItems: "center",
   },
-  btnText: { color: "#fff", fontWeight: "700" },
-
-  // ── Waiting / Result screen (shared shell) ──
+  btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   waitingContainer: {
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 28,
+    padding: 30,
   },
   iconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#e6f0ff",
+    borderWidth: 3,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
-    borderWidth: 3,
-    borderColor: "#0062ff",
   },
-  checkIcon: { fontSize: 36, color: "#0062ff", fontWeight: "700" },
-  waitingTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  waitingSubtitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 12,
-  },
+  checkIcon: { fontSize: 32, fontWeight: "bold" },
+  waitingTitle: { fontSize: 22, fontWeight: "800", marginBottom: 10 },
   waitingBody: {
-    fontSize: 13,
-    color: "#555",
+    fontSize: 14,
+    color: "#666",
     textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 24,
+    lineHeight: 22,
   },
-  garageTag: {
-    fontSize: 13,
-    color: "#0062ff",
-    fontWeight: "600",
-    marginBottom: 28,
-  },
-
-  // ── Countdown ──
+  resultButtonRow: { flexDirection: "row", gap: 12, marginTop: 30 },
+  resultBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
+  outlineBtn: { borderWidth: 1, borderColor: "#0062ff" },
+  outlineBtnText: { color: "#0062ff", fontWeight: "700" },
+  homeBtn: { backgroundColor: "#0062ff" },
+  homeBtnText: { color: "#fff", fontWeight: "700" },
   countdownWrapper: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 4,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 3,
     borderColor: "#0062ff",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    backgroundColor: "#f0f5ff",
+    marginBottom: 20,
   },
-  countdownNumber: { fontSize: 28, fontWeight: "800", color: "#0062ff" },
-  countdownLabel: { fontSize: 10, color: "#666", marginTop: -2 },
-
-  // ── Polling indicator ──
-  pollingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  pollingText: { fontSize: 12, color: "#0062ff" },
-  redirectNote: { fontSize: 12, color: "#999" },
-
-  // ── Result buttons ──
-  resultButtonRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-  },
-  resultBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  outlineBtn: {
-    borderWidth: 1.5,
-    borderColor: "#0062ff",
-    backgroundColor: "#fff",
-  },
-  outlineBtnText: { color: "#0062ff", fontWeight: "700", fontSize: 14 },
-  homeBtn: { backgroundColor: "#0062ff" },
-  homeBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  countdownNumber: { fontSize: 24, fontWeight: "800", color: "#0062ff" },
 });
