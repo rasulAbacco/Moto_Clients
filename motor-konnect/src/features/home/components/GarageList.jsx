@@ -19,8 +19,32 @@ export default function GarageList({ garages, loading }) {
     return <Text style={{ textAlign: "center" }}>No garages found</Text>;
   }
 
+  // ✅ NEW: Get lowest price from nested services
+  const getLowestPrice = (garage) => {
+    if (!garage.services?.length) return null;
+
+    const prices = [];
+
+    garage.services.forEach((main) => {
+      main.sections?.forEach((section) => {
+        section.services?.forEach((svc) => {
+          svc.pricing?.forEach((p) => {
+            if (p.price) prices.push(p.price);
+          });
+        });
+      });
+    });
+
+    if (!prices.length) return null;
+
+    return Math.min(...prices);
+  };
+
   const renderItem = ({ item }) => {
     const garageId = item.id ?? item.userId;
+
+    const rating = item.avgRating ?? 4.0;
+    const lowestPrice = getLowestPrice(item);
 
     return (
       <TouchableOpacity
@@ -28,20 +52,27 @@ export default function GarageList({ garages, loading }) {
         activeOpacity={0.85}
         onPress={() =>
           router.push({
-            pathname: "/service-confirm",
+            pathname: "/garage-services",
             params: {
-              garageId,
-              name: item.companyName,
+              garageId: garageId,
+              garageName: item.companyName || item.name,
+              services: JSON.stringify(item.services),
+
+              // ✅ ADD THIS (IMPORTANT)
+              garage: JSON.stringify({
+                id: garageId,
+                name: item.companyName || item.name,
+              }),
             },
           })
         }
       >
-        {/* Top Badge */}
+        {/* Badge */}
         <View style={styles.badge}>
           <Text style={styles.badgeText}>Trusted</Text>
         </View>
 
-        {/* Garage Name */}
+        {/* Name */}
         <Text style={styles.name} numberOfLines={1}>
           {item.companyName || item.name || "Garage"}
         </Text>
@@ -54,14 +85,18 @@ export default function GarageList({ garages, loading }) {
           </Text>
         </View>
 
-        {/* Bottom Row */}
+        {/* Bottom */}
         <View style={styles.bottomRow}>
+          {/* ⭐ Rating */}
           <View style={styles.ratingBox}>
             <Ionicons name="star" size={12} color="#fff" />
-            <Text style={styles.ratingText}>4.5</Text>
+            <Text style={styles.ratingText}>{Number(rating).toFixed(1)}</Text>
           </View>
 
-          <Text style={styles.price}>₹499 onwards</Text>
+          {/* 💰 Price */}
+          <Text style={styles.price}>
+            {lowestPrice ? `₹${lowestPrice} onwards` : "Price unavailable"}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -98,13 +133,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     marginHorizontal: 4,
 
-    // Shadow (iOS)
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
 
-    // Elevation (Android)
     elevation: 3,
   },
 
@@ -151,7 +184,7 @@ const styles = StyleSheet.create({
   ratingBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#00a86b",
+    backgroundColor: "#1778ff",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -167,6 +200,6 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#333",
+    color: "#1b6afc",
   },
 });

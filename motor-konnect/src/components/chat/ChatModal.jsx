@@ -11,10 +11,24 @@ import {
   Animated,
   Easing,
   ScrollView,
-  StatusBar,
 } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
+
+// ── CONFIGURATION ────────────────────────────────────────────────────────
+// ADD YOUR API KEY HERE
+const GEMINI_API_KEY = "AIzaSyAynVZDkw24JFlQgmwUtKDlsfHSBaWVo90";
+
+const SYSTEM_PROMPT = `
+You are the expert AI Support Assistant for Motor Konnect (the app) and Motor Store. 
+Knowledge Rules:
+- We provide Car and Bike services (Scheduled Packages, Engine, AC, Detailing, etc.).
+- SOS: Emergency requests (Puncture, Towing, Jumpstart) are high priority.
+- Location: We suggest garages based on user's live location.
+- Pricing: Owners set prices; they vary garage to garage.
+- Navigation: Suggest 'Go to Profile' for adding vehicles, 'Select Garage' for services.
+Interaction: Handle typos (servis -> service). Be concise. Use **bold** for emphasis.
+`;
 
 const BRAND = {
   bg: "#0A0A0F",
@@ -35,51 +49,30 @@ const QUICK_QUESTIONS = [
   {
     id: "q1",
     icon: "car-outline",
-    label: "Book a Service",
-    text: "I'd like to book a vehicle service appointment.",
+    label: "Book Service",
+    text: "How do I book a service on Motor Konnect?",
   },
   {
     id: "q2",
-    icon: "construct-outline",
-    label: "Oil Change",
-    text: "How much does an oil change cost?",
+    icon: "alert-circle-outline",
+    label: "SOS Help",
+    text: "I need emergency SOS assistance right now.",
   },
   {
     id: "q3",
-    icon: "alert-circle-outline",
-    label: "Warning Light",
-    text: "My dashboard warning light is on. What should I do?",
+    icon: "cart-outline",
+    label: "Motor Store",
+    text: "What can I buy in the Motor Store?",
   },
   {
     id: "q4",
-    icon: "battery-charging-outline",
-    label: "Battery Check",
-    text: "I need a battery check for my car.",
-  },
-  {
-    id: "q5",
-    icon: "time-outline",
-    label: "Wait Time",
-    text: "What is the current estimated wait time for repairs?",
-  },
-  {
-    id: "q6",
-    icon: "cash-outline",
-    label: "Get a Quote",
-    text: "Can I get a repair quote for my vehicle?",
+    icon: "pricetags-outline",
+    label: "Prices",
+    text: "Why do prices vary between garages?",
   },
 ];
 
-const BOT_REPLIES = {
-  q1: "Sure! We're open Mon–Sat, 8AM–6PM. You can book online or call us at **1-800-GARAGE**. Which day works best for you?",
-  q2: "A standard oil change starts at **$39.99** for conventional oil and **$69.99** for full synthetic. Includes a 21-point inspection — free of charge! 🔧",
-  q3: "Don't ignore it! Common causes include a loose gas cap, low oil pressure, or O2 sensor issues. Bring it in for a **free diagnostic scan** today.",
-  q4: "We offer free battery testing and load checks in under 10 minutes — no appointment needed! Just drive in anytime. 🔋",
-  q5: "Current average wait time is **45–60 minutes** for standard services. Express bay is available for oil changes & tire rotations.",
-  q6: "Happy to help with a quote! Please share your vehicle's **year, make, model**, and describe the issue. We'll get back to you within 24 hours. 🚗",
-  default:
-    "Thanks for reaching out! One of our service advisors will get back to you shortly. For urgent issues, please call **1-800-GARAGE** or visit us in person. 🔧",
-};
+// ── Components ───────────────────────────────────────────────────────────
 
 function TypingIndicator() {
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -202,11 +195,13 @@ function MessageBubble({ item, isNew }) {
   );
 }
 
+// ── Main Chat Modal ──────────────────────────────────────────────────────
+
 export default function ChatModal({ visible, onClose }) {
   const [messages, setMessages] = useState([
     {
       id: "1",
-      text: "👋 Welcome to **GarageAssist**! I'm here to help with all your vehicle service needs. Pick a quick option below or type your question.",
+      text: "👋 Welcome to **Motor Konnect**! How can I help with your car or bike today?",
       bot: true,
       time: now(),
     },
@@ -217,6 +212,15 @@ export default function ChatModal({ visible, onClose }) {
   const [newMsgIds, setNewMsgIds] = useState(new Set(["1"]));
   const flatListRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(600)).current;
+
+  // Manual History Management for the REST API
+  const conversationHistory = useRef([
+    { role: "user", parts: [{ text: "Context: " + SYSTEM_PROMPT }] },
+    {
+      role: "model",
+      parts: [{ text: "Understood. I am the Motor Konnect assistant." }],
+    },
+  ]);
 
   useEffect(() => {
     if (visible) {
@@ -236,59 +240,83 @@ export default function ChatModal({ visible, onClose }) {
   }, [visible]);
 
   function now() {
-    const d = new Date();
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
-  const addMessages = (userMsg, botMsg) => {
-    const ids = new Set([userMsg.id, botMsg.id]);
-    setNewMsgIds(ids);
+  const callGeminiAPI = async (userText) => {
+    try {
+      // Direct Fetch call to bypass library version issues
+const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;  
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            ...conversationHistory.current,
+            { role: "user", parts: [{ text: userText }] },
+          ],
+        }),
+      });
+
+      const json = await response.json();
+
+      if (json.error) {
+        console.error("API Error:", json.error);
+        return "I'm having a technical issue. Please try again or call **1-800-GARAGE**.";
+      }
+
+      const botResponseText =
+        json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "No response from AI";
+
+      // Update local history for context in next message
+      conversationHistory.current.push({
+        role: "user",
+        parts: [{ text: userText }],
+      });
+      conversationHistory.current.push({
+        role: "model",
+        parts: [{ text: botResponseText }],
+      });
+
+      return botResponseText;
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      return "Connection error. Please check your internet.";
+    }
+  };
+
+  const handleProcessMessage = async (text) => {
+    if (!text.trim() || typing) return;
+
+    const userMsg = {
+      id: `u-${Date.now()}`,
+      text: text.trim(),
+      bot: false,
+      time: now(),
+    };
     setMessages((prev) => [...prev, userMsg]);
+    setNewMsgIds(new Set([userMsg.id]));
+    setInput("");
     setTyping(true);
     setShowQuick(false);
 
-    setTimeout(() => {
-      setTyping(false);
-      setMessages((prev) => [...prev, botMsg]);
-      setTimeout(
-        () => flatListRef.current?.scrollToEnd({ animated: true }),
-        100,
-      );
-    }, 1400);
-  };
+    const botText = await callGeminiAPI(text.trim());
 
-  const handleQuick = (q) => {
-    const userMsg = {
-      id: `u-${Date.now()}`,
-      text: q.text,
-      bot: false,
-      time: now(),
-    };
     const botMsg = {
       id: `b-${Date.now()}`,
-      text: BOT_REPLIES[q.id] || BOT_REPLIES["default"],
+      text: botText,
       bot: true,
       time: now(),
     };
-    addMessages(userMsg, botMsg);
-  };
+    setTyping(false);
+    setMessages((prev) => [...prev, botMsg]);
+    setNewMsgIds((prev) => new Set([...prev, botMsg.id]));
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const userMsg = {
-      id: `u-${Date.now()}`,
-      text: input.trim(),
-      bot: false,
-      time: now(),
-    };
-    const botMsg = {
-      id: `b-${Date.now()}`,
-      text: "Thanks for your message! Our support team will review it and get back to you shortly. For immediate help, call **1-800-GARAGE** 🚗",
-      bot: true,
-      time: now(),
-    };
-    setInput("");
-    addMessages(userMsg, botMsg);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
   return (
@@ -302,30 +330,24 @@ export default function ChatModal({ visible, onClose }) {
         <Animated.View
           style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.logoWrap}>
                 <Ionicons name="car-sport" size={20} color="#fff" />
               </View>
               <View>
-                <Text style={styles.headerTitle}>GarageAssist</Text>
+                <Text style={styles.headerTitle}>Motor Konnect AI</Text>
                 <View style={styles.onlineRow}>
                   <View style={styles.onlineDot} />
-                  <Text style={styles.onlineText}>Support team online</Text>
+                  <Text style={styles.onlineText}>Intelligent Assistant</Text>
                 </View>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeBtn}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={20} color={BRAND.textMuted} />
             </TouchableOpacity>
           </View>
 
-          {/* Messages */}
           <FlatList
             ref={flatListRef}
             data={messages}
@@ -357,10 +379,9 @@ export default function ChatModal({ visible, onClose }) {
             }
           />
 
-          {/* Quick replies */}
           {showQuick && (
             <View style={styles.quickSection}>
-              <Text style={styles.quickLabel}>Quick Options</Text>
+              <Text style={styles.quickLabel}>Common Questions</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -370,8 +391,7 @@ export default function ChatModal({ visible, onClose }) {
                   <TouchableOpacity
                     key={q.id}
                     style={styles.quickChip}
-                    onPress={() => handleQuick(q)}
-                    activeOpacity={0.75}
+                    onPress={() => handleProcessMessage(q.text)}
                   >
                     <Ionicons name={q.icon} size={14} color={BRAND.accent} />
                     <Text style={styles.quickChipText}>{q.label}</Text>
@@ -381,7 +401,6 @@ export default function ChatModal({ visible, onClose }) {
             </View>
           )}
 
-          {/* Input */}
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
@@ -389,31 +408,26 @@ export default function ChatModal({ visible, onClose }) {
               <TextInput
                 value={input}
                 onChangeText={setInput}
-                placeholder="Ask anything about your vehicle..."
+                placeholder="Ask about car/bike service..."
                 placeholderTextColor={BRAND.textMuted}
                 style={styles.input}
                 multiline
-                maxLength={300}
-                onSubmitEditing={sendMessage}
               />
               <TouchableOpacity
-                onPress={sendMessage}
+                onPress={() => handleProcessMessage(input)}
                 style={[styles.sendBtn, { opacity: input.trim() ? 1 : 0.4 }]}
-                activeOpacity={0.8}
-                disabled={!input.trim()}
+                disabled={!input.trim() || typing}
               >
                 <Ionicons name="send" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
             <View style={styles.footer}>
               <Ionicons
-                name="shield-checkmark-outline"
+                name="flash-outline"
                 size={11}
                 color={BRAND.textMuted}
               />
-              <Text style={styles.footerText}>
-                Powered by GarageAssist · Secure & Private
-              </Text>
+              <Text style={styles.footerText}>Secure AI Assistance</Text>
             </View>
           </KeyboardAvoidingView>
         </Animated.View>
@@ -437,7 +451,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: BRAND.border,
   },
-  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -456,10 +469,6 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: BRAND.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
     elevation: 6,
   },
   headerTitle: {
@@ -489,7 +498,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Messages
   msgList: { padding: 16, gap: 4, paddingBottom: 8 },
   bubbleWrapper: {
     flexDirection: "row",
@@ -513,11 +521,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  bubble: {
-    padding: 13,
-    borderRadius: 18,
-    flexShrink: 1,
-  },
+  bubble: { padding: 13, borderRadius: 18, flexShrink: 1 },
   botBubble: {
     backgroundColor: BRAND.card,
     borderTopLeftRadius: 4,
@@ -527,10 +531,6 @@ const styles = StyleSheet.create({
   userBubble: {
     backgroundColor: BRAND.accent,
     borderTopRightRadius: 4,
-    shadowColor: BRAND.accent,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
     elevation: 4,
   },
   msgText: { fontSize: 14, lineHeight: 20 },
@@ -540,7 +540,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
     textAlign: "right",
   },
-  // Quick replies
   quickSection: {
     paddingTop: 10,
     paddingBottom: 6,
@@ -570,7 +569,6 @@ const styles = StyleSheet.create({
     borderColor: BRAND.accent,
   },
   quickChipText: { fontSize: 13, fontWeight: "600", color: BRAND.accentSoft },
-  // Input
   inputRow: {
     flexDirection: "row",
     padding: 12,
@@ -600,10 +598,6 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: BRAND.accent,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.45,
-    shadowRadius: 6,
     elevation: 5,
   },
   footer: {

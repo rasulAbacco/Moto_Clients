@@ -19,7 +19,7 @@ export default function StoreHeader() {
             Welcome to
           </Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            GoStore 🛒
+            Motor Store 🛒
           </Text>
         </View>
 
@@ -57,7 +57,7 @@ export default function StoreHeader() {
       </Text>
 
       {/* Search bar (tappable → /search) */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[
           styles.searchBar,
           {
@@ -89,7 +89,7 @@ export default function StoreHeader() {
         >
           <Ionicons name="mic-outline" size={15} color={theme.colors.primary} />
         </View>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }

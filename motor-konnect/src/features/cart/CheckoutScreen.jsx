@@ -1,3 +1,4 @@
+// CheckoutScreen.jsx
 import {
   View,
   Text,
@@ -90,7 +91,7 @@ export default function CheckoutScreen() {
   const subtotal = getTotal();
   const hasService = cartItems.some((i) => i.source === "service");
   const cartType = hasService ? "service" : "store";
-  const deliveryFee = subtotal > 499 ? 0 : 49;
+  const deliveryFee = cartType === "service" ? 0 : subtotal > 499 ? 0 : 49;
   const grandTotal = subtotal + deliveryFee;
   const itemCount = cartItems.reduce((acc, i) => acc + i.quantity, 0);
 
@@ -98,18 +99,20 @@ export default function CheckoutScreen() {
     setPlacing(true);
     // Simulate API call
     await new Promise((r) => setTimeout(r, 1500));
-    clearCart();
-    setPlacing(false);
-    Alert.alert(
-      "Order Placed! 🎉",
-      "Your order has been confirmed. You'll receive a notification when it's shipped.",
-      [
-        {
-          text: "Continue Shopping",
-          onPress: () => router.replace("/(tabs)/gostore"),
-        },
-      ],
-    );
+    if (cartType === "service") {
+      clearCart();
+      Alert.alert(
+        "Booking Confirmed 🚗",
+        "Your service request has been sent to the garage. You can pay directly at the garage.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/"),
+          },
+        ],
+      );
+      return;
+    }
   };
 
   return (
@@ -241,91 +244,93 @@ export default function CheckoutScreen() {
         </SectionCard>
 
         {/* Payment Method */}
-        <SectionCard title="Payment Method" icon="card-outline" theme={theme}>
-          {PAYMENT_METHODS.map((m, index) => {
-            const isSelected = paymentMethod === m.id;
-            const isLast = index === PAYMENT_METHODS.length - 1;
-            return (
-              <TouchableOpacity
-                key={m.id}
-                style={[
-                  styles.paymentRow,
-                  !isLast && {
-                    borderBottomWidth: 0.5,
-                    borderBottomColor: theme.colors.border,
-                  },
-                  isSelected && {
-                    backgroundColor: theme.colors.primary + "08",
-                  },
-                ]}
-                onPress={() => setPaymentMethod(m.id)}
-                activeOpacity={0.7}
-              >
-                <View
+        {cartType !== "service" && (
+          <SectionCard title="Payment Method" icon="card-outline" theme={theme}>
+            {PAYMENT_METHODS.map((m, index) => {
+              const isSelected = paymentMethod === m.id;
+              const isLast = index === PAYMENT_METHODS.length - 1;
+              return (
+                <TouchableOpacity
+                  key={m.id}
                   style={[
-                    styles.payIcon,
-                    {
-                      backgroundColor: isSelected
-                        ? theme.colors.primary + "20"
-                        : theme.colors.background,
+                    styles.paymentRow,
+                    !isLast && {
+                      borderBottomWidth: 0.5,
+                      borderBottomColor: theme.colors.border,
+                    },
+                    isSelected && {
+                      backgroundColor: theme.colors.primary + "08",
                     },
                   ]}
+                  onPress={() => setPaymentMethod(m.id)}
+                  activeOpacity={0.7}
                 >
-                  <Ionicons
-                    name={m.icon}
-                    size={18}
-                    color={
-                      isSelected
-                        ? theme.colors.primary
-                        : theme.colors.textSecondary
-                    }
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
+                  <View
                     style={[
-                      styles.payLabel,
+                      styles.payIcon,
                       {
-                        color: isSelected
-                          ? theme.colors.primary
-                          : theme.colors.text,
+                        backgroundColor: isSelected
+                          ? theme.colors.primary + "20"
+                          : theme.colors.background,
                       },
                     ]}
                   >
-                    {m.label}
-                  </Text>
-                  <Text
+                    <Ionicons
+                      name={m.icon}
+                      size={18}
+                      color={
+                        isSelected
+                          ? theme.colors.primary
+                          : theme.colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.payLabel,
+                        {
+                          color: isSelected
+                            ? theme.colors.primary
+                            : theme.colors.text,
+                        },
+                      ]}
+                    >
+                      {m.label}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.paySub,
+                        { color: theme.colors.textSecondary },
+                      ]}
+                    >
+                      {m.sub}
+                    </Text>
+                  </View>
+                  <View
                     style={[
-                      styles.paySub,
-                      { color: theme.colors.textSecondary },
+                      styles.radioOuter,
+                      {
+                        borderColor: isSelected
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      },
                     ]}
                   >
-                    {m.sub}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.radioOuter,
-                    {
-                      borderColor: isSelected
-                        ? theme.colors.primary
-                        : theme.colors.border,
-                    },
-                  ]}
-                >
-                  {isSelected && (
-                    <View
-                      style={[
-                        styles.radioInner,
-                        { backgroundColor: theme.colors.primary },
-                      ]}
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </SectionCard>
+                    {isSelected && (
+                      <View
+                        style={[
+                          styles.radioInner,
+                          { backgroundColor: theme.colors.primary },
+                        ]}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </SectionCard>
+        )}
 
         {/* Price Summary */}
         <SectionCard title="Price Summary" icon="receipt-outline" theme={theme}>
@@ -407,7 +412,9 @@ export default function CheckoutScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Text style={styles.placeBtnText}>Place Order</Text>
+              <Text style={styles.placeBtnText}>
+                {cartType === "service" ? "Confirm Booking" : "Place Order"}
+              </Text>
               <Ionicons
                 name="checkmark-circle-outline"
                 size={18}

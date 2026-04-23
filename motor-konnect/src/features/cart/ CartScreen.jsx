@@ -1,3 +1,4 @@
+// CartScreen.jsx
 import {
   View,
   Text,
@@ -7,15 +8,17 @@ import {
   Image,
   Platform,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCart } from "../../hooks/useCart";
 import { useTheme } from "../../hooks/useTheme";
 import { useRouter } from "expo-router";
+import { useAuth } from "../../providers/AuthProvider";
+import { useLoginSheet } from "../../providers/LoginSheetProvider";
 
 // ── Empty state ───────────────────────────────────────────────────────────────
-function EmptyCart({ theme, router, lastCartType }) {
+function EmptyCart({ theme, router }) {
   return (
     <View style={emptyStyles.wrap}>
       <View
@@ -83,8 +86,8 @@ const emptyStyles = StyleSheet.create({
 
 // ── Cart item row ─────────────────────────────────────────────────────────────
 function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
-  const subtotal = item.price * item.quantity;
-
+  const subtotal =
+    item.source === "service" ? item.price : item.price * item.quantity;
   return (
     <View
       style={[
@@ -95,7 +98,6 @@ function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
         },
       ]}
     >
-      {/* Image */}
       <View
         style={[
           itemStyles.imageWrap,
@@ -116,8 +118,6 @@ function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
           />
         )}
       </View>
-
-      {/* Info */}
       <View style={itemStyles.info}>
         {item.brand && (
           <Text
@@ -136,8 +136,6 @@ function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
         <Text style={[itemStyles.subtotal, { color: theme.colors.primary }]}>
           ₹{subtotal.toLocaleString("en-IN")}
         </Text>
-
-        {/* Qty controls */}
         {item.source !== "service" && (
           <View style={itemStyles.qtyRow}>
             <TouchableOpacity
@@ -175,8 +173,6 @@ function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
           </View>
         )}
       </View>
-
-      {/* Delete */}
       <TouchableOpacity
         style={itemStyles.deleteBtn}
         onPress={() => onDelete(item.id)}
@@ -232,7 +228,6 @@ const itemStyles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 0,
   },
   qty: { fontSize: 14, fontWeight: "700", minWidth: 18, textAlign: "center" },
   unitPrice: { fontSize: 11, marginLeft: 4 },
@@ -245,7 +240,11 @@ export default function CartScreen() {
     useCart();
   const { theme } = useTheme();
   const router = useRouter();
-  const [lastCartType, setLastCartType] = useState("store");
+  const { user } = useAuth();
+  const { openLoginSheet } = useLoginSheet();
+
+  // Flag to handle automatic navigation after login
+  const [isPendingCheckout, setIsPendingCheckout] = useState(false);
 
   const total = getTotal();
   const hasService = cartItems.some((i) => i.source === "service");
@@ -254,32 +253,57 @@ export default function CartScreen() {
   const deliveryFee = cartType === "service" ? 0 : total > 499 ? 0 : 49;
   const grandTotal = total + deliveryFee;
 
-  console.log("CART ITEMS:", cartItems);
+  // Function to handle the actual navigation logic
+  const proceedToNextStep = () => {
+    if (cartType === "service") {
+      const serviceItem = cartItems.find((i) => i.source === "service");
 
-  const handleDeleteItem = (id) => {
-    // Remove all qty of this item
-    const item = cartItems.find((i) => i.id === id);
-    if (!item) return;
-    for (let q = 0; q < item.quantity; q++) removeFromCart(id);
+      if (!serviceItem?.garageId) {
+        console.warn("No garage found in cart");
+        return;
+      }
+
+      router.push({
+        pathname: "/service-confirm",
+        params: {
+          garageId: serviceItem.garageId,
+          name: serviceItem.garageName,
+        },
+      });
+    } else {
+      router.push("/checkout");
+    }
   };
 
+  // 🔄 Automatic navigation effect
   useEffect(() => {
-    if (cartItems.length > 0) {
-      setLastCartType(cartType);
+    if (user && isPendingCheckout) {
+      setIsPendingCheckout(false);
+      proceedToNextStep();
     }
-  }, [cartItems]);
+  }, [user, isPendingCheckout]);
+
+  const handleCheckoutPress = () => {
+    if (!user) {
+      setIsPendingCheckout(true);
+      openLoginSheet();
+    } else {
+      proceedToNextStep();
+    }
+  };
+
+  const handleDeleteItem = (id) => {
+    setTimeout(() => {
+      removeFromCart(id);
+    }, 0);
+  };
 
   const renderHeader = () => (
     <View>
-      {/* Page header */}
       <View
         style={[styles.pageHeader, { borderBottomColor: theme.colors.border }]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons
             name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
             size={22}
@@ -305,8 +329,6 @@ export default function CartScreen() {
           <View style={{ minWidth: 48 }} />
         )}
       </View>
-
-      {/* Item count */}
       {cartItems.length > 0 && (
         <Text
           style={[styles.countLabel, { color: theme.colors.textSecondary }]}
@@ -321,36 +343,34 @@ export default function CartScreen() {
     if (!cartItems.length) return null;
     return (
       <View style={styles.footer}>
-        {/* Free delivery nudge */}
-        {cartType === "store" && deliveryFee > 0 && (
+        {cartType === "store" && (
           <View
             style={[
               styles.nudgeBanner,
-              { backgroundColor: "#fef3c7", borderColor: "#fde68a" },
+              {
+                backgroundColor: deliveryFee > 0 ? "#fef3c7" : "#dcfce7",
+                borderColor: deliveryFee > 0 ? "#fde68a" : "#bbf7d0",
+              },
             ]}
           >
-            <Ionicons name="bicycle-outline" size={16} color="#d97706" />
-            <Text style={styles.nudgeText}>
-              Add ₹{(500 - total).toLocaleString("en-IN")} more for FREE
-              delivery
-            </Text>
-          </View>
-        )}
-        {cartType === "store" && deliveryFee === 0 && (
-          <View
-            style={[
-              styles.nudgeBanner,
-              { backgroundColor: "#dcfce7", borderColor: "#bbf7d0" },
-            ]}
-          >
-            <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-            <Text style={[styles.nudgeText, { color: "#16a34a" }]}>
-              🎉 You've unlocked FREE delivery!
+            <Ionicons
+              name={deliveryFee > 0 ? "bicycle-outline" : "checkmark-circle"}
+              size={16}
+              color={deliveryFee > 0 ? "#d97706" : "#16a34a"}
+            />
+            <Text
+              style={[
+                styles.nudgeText,
+                deliveryFee === 0 && { color: "#16a34a" },
+              ]}
+            >
+              {deliveryFee > 0
+                ? `Add ₹${(500 - total).toLocaleString("en-IN")} more for FREE delivery`
+                : "🎉 You've unlocked FREE delivery!"}
             </Text>
           </View>
         )}
 
-        {/* Order summary card */}
         <View
           style={[
             styles.summaryCard,
@@ -363,7 +383,6 @@ export default function CartScreen() {
           <Text style={[styles.summaryTitle, { color: theme.colors.text }]}>
             Order Summary
           </Text>
-
           <View style={styles.summaryRow}>
             <Text
               style={[
@@ -377,7 +396,6 @@ export default function CartScreen() {
               ₹{total.toLocaleString("en-IN")}
             </Text>
           </View>
-
           {cartType === "store" && (
             <View style={styles.summaryRow}>
               <Text
@@ -413,11 +431,9 @@ export default function CartScreen() {
               )}
             </View>
           )}
-
           <View
             style={[styles.divider, { backgroundColor: theme.colors.border }]}
           />
-
           <View style={styles.summaryRow}>
             <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
               Total
@@ -428,25 +444,17 @@ export default function CartScreen() {
           </View>
         </View>
 
-        {/* Checkout button */}
         <TouchableOpacity
           style={[
             styles.checkoutBtn,
             { backgroundColor: theme.colors.primary },
           ]}
-          onPress={() => {
-            if (cartType === "service") {
-              router.push("/service-garage"); // 🔧 new flow
-            } else {
-              router.push("/checkout"); // existing store flow
-            }
-          }}
+          onPress={handleCheckoutPress}
           activeOpacity={0.88}
         >
           <Text style={styles.checkoutText}>Proceed to Checkout</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />
         </TouchableOpacity>
-
         <Text
           style={[styles.secureText, { color: theme.colors.textSecondary }]}
         >
@@ -463,16 +471,10 @@ export default function CartScreen() {
     >
       <FlatList
         data={cartItems}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={[styles.list, !cartItems.length && { flex: 1 }]}
         ListHeaderComponent={renderHeader}
-        ListEmptyComponent={
-          <EmptyCart
-            theme={theme}
-            router={router}
-            lastCartType={lastCartType} // ✅ NEW
-          />
-        }
+        ListEmptyComponent={<EmptyCart theme={theme} router={router} />}
         renderItem={({ item }) => (
           <CartItem
             item={item}
@@ -491,7 +493,6 @@ export default function CartScreen() {
 
 const styles = StyleSheet.create({
   list: { paddingBottom: 40 },
-
   pageHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -516,9 +517,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
   },
-
   footer: { paddingHorizontal: 16, gap: 14, marginTop: 8 },
-
   nudgeBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -528,7 +527,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   nudgeText: { flex: 1, fontSize: 13, fontWeight: "600", color: "#92400e" },
-
   summaryCard: {
     borderRadius: 16,
     borderWidth: 0.5,
@@ -553,7 +551,6 @@ const styles = StyleSheet.create({
   divider: { height: 0.5, marginVertical: 2 },
   totalLabel: { fontSize: 15, fontWeight: "700" },
   totalValue: { fontSize: 20, fontWeight: "800", letterSpacing: -0.4 },
-
   checkoutBtn: {
     flexDirection: "row",
     alignItems: "center",
