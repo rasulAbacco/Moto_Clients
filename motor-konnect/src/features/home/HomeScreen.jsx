@@ -96,6 +96,10 @@ export default function HomeScreen() {
         main.sections?.forEach((section) => {
           section.services?.forEach((svc) => {
             svc.pricing?.forEach((p) => carTypesInThisGroup.add(p.carType));
+             console.log(
+               `🔍 [DEBUGss] "${g.companyName || g.name}" > "${main.name}" > "${svc.name}" ` +
+                 `vehicleType: ${JSON.stringify(svc.vehicleType)}`,
+             );
           });
         });
         console.log(
