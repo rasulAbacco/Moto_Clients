@@ -19,7 +19,7 @@
       "package": "com.abacco.motorkonnect",
       "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/IconOnly111.jpg",
+        "foregroundImage": "./assets/images/IconOnly_NoBuffer.png",
         "backgroundColor": "#0B1F3A"
       },
       "edgeToEdgeEnabled": true,
