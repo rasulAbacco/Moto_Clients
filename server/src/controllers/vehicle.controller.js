@@ -124,7 +124,7 @@ export const getModels = async (req, res) => {
     // 1. DB models with their ModelYear thumbnails
     const models = await prisma.model.findMany({
       where: { brandId: String(brandId) },
-      include: { ModelYear: true },
+      include: { modelYear: true },
     });
 
     // 2. Load JSON for the correct vehicle type

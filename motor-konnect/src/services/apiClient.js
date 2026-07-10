@@ -6,12 +6,12 @@ import { Platform } from "react-native";
 const getBaseURL = () => {
   if (Platform.OS === "android") {
     // Android Emulator
-    return "https://046v55w0-8000.inc1.devtunnels.ms/api";
+    return "https://x59j71v4-8000.inc1.devtunnels.ms/api";
     // return "https://moto-clients.onrender.com/api";
   }
 
   // iOS Simulator
-  return "https://046v55w0-8000.inc1.devtunnels.ms/api";
+  return "https://x59j71v4-8000.inc1.devtunnels.ms/api";
   // return "https://moto-clients.onrender.com/api";
 };
 
