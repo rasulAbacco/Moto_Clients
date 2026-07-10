@@ -19,6 +19,7 @@ import { useCart } from "../../hooks/useCart";
 import { useAuth } from "../../providers/AuthProvider";
 import { useLoginSheet } from "../../providers/LoginSheetProvider";
 import useAppStore from "../../store/useAppStore";
+import CartBar from "../../features/gostore/components/CartBar";
 
 export default function HomeScreen() {
   const { theme } = useTheme();
@@ -96,10 +97,10 @@ export default function HomeScreen() {
         main.sections?.forEach((section) => {
           section.services?.forEach((svc) => {
             svc.pricing?.forEach((p) => carTypesInThisGroup.add(p.carType));
-             console.log(
-               `🔍 [DEBUGss] "${g.companyName || g.name}" > "${main.name}" > "${svc.name}" ` +
-                 `vehicleType: ${JSON.stringify(svc.vehicleType)}`,
-             );
+            console.log(
+              `🔍 [DEBUGss] "${g.companyName || g.name}" > "${main.name}" > "${svc.name}" ` +
+                `vehicleType: ${JSON.stringify(svc.vehicleType)}`,
+            );
           });
         });
         console.log(
@@ -335,6 +336,7 @@ export default function HomeScreen() {
         onSearchChange={setSearchQuery}
         onSearchClear={() => setSearchQuery("")}
       />
+
       <Animated.FlatList
         data={sections}
         keyExtractor={(item) => item.id}
@@ -350,7 +352,7 @@ export default function HomeScreen() {
             </View>
           ) : null
         }
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false },
@@ -363,6 +365,8 @@ export default function HomeScreen() {
           />
         }
       />
+
+      <CartBar />
     </SafeAreaView>
   );
 }
