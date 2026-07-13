@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "MotorKonnect",
@@ -19,14 +20,15 @@
       "package": "com.abacco.motorkonnect",
       "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/IconOnly111.jpg",
+        "foregroundImage": "./assets/images/IconOnly_NoBuffer.png",
         "backgroundColor": "#0B1F3A"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.INTERNET"
       ]
     },
     "web": {

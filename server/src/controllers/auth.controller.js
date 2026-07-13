@@ -302,7 +302,7 @@ export const getVehicles = async (req, res, next) => {
             id: true,
             name: true,
             segment: true,
-            ModelYear: {
+            modelYear: {
               select: {
                 thumbnailUrl: true,
                 heroUrl: true,

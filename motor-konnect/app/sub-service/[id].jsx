@@ -1,4 +1,9 @@
 // app/sub-service/[id].jsx
+//
+// Reached by tapping a ServiceCard's body (not its Add button). Full
+// detail view: image, description, price. Cart logic now goes through
+// the shared useAddToCart hook instead of a copy-pasted Alert — same
+// "different garage" conflict behavior as ServiceCard everywhere else.
 
 import {
   View,
@@ -8,7 +13,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,40 +20,57 @@ import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../src/services/apiClient";
 import { useTheme } from "../../src/hooks/useTheme";
+import useAppStore from "../../src/store/useAppStore";
+import { useAddToCart } from "../../src/hooks/useAddToCart";
+import { getServicePrice } from "../../src/utils/pricing";
 
-const { width } = Dimensions.get("window");
-
-// ── Screen ─────────────────────────────────────────────
+const PRIMARY_BLUE = "#0062ff";
 
 export default function SubServiceDetails() {
-  const { id, service: serviceParam, carType } = useLocalSearchParams();
+  const { id, garageId } = useLocalSearchParams();
   const router = useRouter();
   const { theme } = useTheme();
 
+  const activeVehicleType = useAppStore((s) => s.activeVehicleType);
+  const getGarageById = useAppStore((s) => s.getGarageById);
+  const { addServiceToCart, isInCart, removeFromCart } = useAddToCart();
+
   const [service, setService] = useState(null);
+  const [garage, setGarage] = useState(null);
+  const [garageName, setGarageName] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     init();
-  }, [id, serviceParam]);
+  }, [id, garageId]);
 
   const init = async () => {
+    setLoading(true);
     try {
-      // ✅ USE PASSED DATA FIRST
-      if (serviceParam) {
-        try {
-          const parsed = JSON.parse(serviceParam);
-          setService(parsed);
-          return;
-        } catch (e) {
-          console.log("Parse error:", e.message);
-        }
+      const cachedGarage = getGarageById(garageId);
+      let found = null;
+      cachedGarage?.services?.forEach((main) => {
+        main.sections?.forEach((section) => {
+          section.services?.forEach((svc) => {
+            if (String(svc.id) === String(id)) found = svc;
+          });
+        });
+      });
+
+      if (found) {
+        setService(found);
+        setGarage(cachedGarage);
+        setGarageName(cachedGarage.companyName || cachedGarage.name);
+        return;
       }
 
-      // ✅ FALLBACK API
+      // Confirmed-working route: GET /services/sub-services/:id
+      // (used only if this service isn't found in the garage cache —
+      // e.g. reached via a link that didn't carry a garageId).
       if (id) {
         const res = await api.get(`/services/sub-services/${id}`);
         setService(res.data);
+        setGarageName(res.data?.section?.mainService?.name || null);
       }
     } catch (err) {
       console.log("INIT ERROR:", err.message);
@@ -58,54 +79,33 @@ export default function SubServiceDetails() {
     }
   };
 
-  // ── PRICE FIX (IMPORTANT) ─────────────────────────────
+  const { final: finalPrice, original: originalPrice } = service
+    ? getServicePrice(service, activeVehicleType)
+    : { final: 0, original: 0 };
+  const hasDiscount = originalPrice > finalPrice;
+  const added = service ? isInCart(service.id) : false;
 
- const getServicePrice = () => {
-   if (service?.pricing?.length > 0 && carType) {
-     const match = service.pricing.find(
-       (p) => p.carType === carType.toUpperCase(),
-     );
-
-     if (match) {
-       const price = parseFloat(match.price || 0);
-       const discount = parseFloat(match.discount || 0);
-       const discountType = match.discountType;
-
-       let finalPrice = price;
-
-       if (discountType === "PERCENTAGE") {
-         finalPrice = price - (price * discount) / 100;
-       } else if (discountType === "FLAT") {
-         finalPrice = price - discount;
-       }
-
-       return Math.max(finalPrice, 0);
-     }
-   }
-
-   // fallback (also fix here if needed)
-   if (service?.price) {
-     const price = parseFloat(service.price || 0);
-     const discount = parseFloat(service.discountValue || 0);
-     const discountType = service.discountType;
-
-     let finalPrice = price;
-
-     if (discountType === "PERCENTAGE") {
-       finalPrice = price - (price * discount) / 100;
-     } else if (discountType === "FLAT") {
-       finalPrice = price - discount;
-     }
-
-     return Math.max(finalPrice, 0);
-   }
-
-   return 0;
- };
-
-  const finalPrice = getServicePrice();
-
-  // ── Loading ─────────────────────────────────────────
+  const handleAddToCart = () => {
+    if (added) {
+      removeFromCart(service.id);
+      return;
+    }
+    addServiceToCart(
+      {
+        id: service.id,
+        title: service.name,
+        price: finalPrice,
+        carType: activeVehicleType,
+        image: service.image || null,
+        source: "service",
+        slug: service.slug,
+        garageId,
+        garageName,
+        garage,
+      },
+      { onAdded: () => router.push("/cart") },
+    );
+  };
 
   if (loading) {
     return (
@@ -126,21 +126,17 @@ export default function SubServiceDetails() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.colors.primary} />
         </TouchableOpacity>
-
         <Text numberOfLines={1} style={styles.headerTitle}>
           {service.name}
         </Text>
-
         <View style={{ width: 22 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* IMAGE */}
         <View style={styles.heroWrap}>
           <Image
             source={{
@@ -153,15 +149,35 @@ export default function SubServiceDetails() {
           />
         </View>
 
-        {/* CONTENT */}
         <View style={styles.content}>
-          {/* NAME */}
-          <Text style={styles.title}>{service.name}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{service.name}</Text>
+            {garage?.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={12}
+                  color={PRIMARY_BLUE}
+                />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            )}
+          </View>
 
-          {/* PRICE */}
-          <Text style={styles.price}>₹{finalPrice}</Text>
+          {garageName && (
+            <View style={styles.garageLine}>
+              <Ionicons name="storefront-outline" size={13} color="#8E8E93" />
+              <Text style={styles.garageNameText}>{garageName}</Text>
+            </View>
+          )}
 
-          {/* DESCRIPTION */}
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>₹{finalPrice}</Text>
+            {hasDiscount && (
+              <Text style={styles.originalPrice}>₹{originalPrice}</Text>
+            )}
+          </View>
+
           <Text style={styles.sectionTitle}>About</Text>
           <Text style={styles.desc}>
             {service.description?.trim()
@@ -171,42 +187,28 @@ export default function SubServiceDetails() {
         </View>
       </ScrollView>
 
-      {/* FOOTER */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.bookBtn}
-          onPress={() =>
-            router.push({
-              pathname: "/book",
-              params: {
-                externalServiceId: service.id,
-              },
-            })
-          }
+          style={[styles.bookBtn, added && styles.bookBtnAdded]}
+          onPress={handleAddToCart}
         >
-          <Text style={styles.bookText}>Book Now</Text>
+          <Text style={styles.bookText}>
+            {added ? "Remove from Cart" : "Add to Cart"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-// ── Styles ─────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
+  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
   },
-
   headerTitle: {
     fontWeight: "700",
     fontSize: 16,
@@ -214,56 +216,50 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginHorizontal: 8,
   },
-
-  heroWrap: {
-    height: 220,
+  heroWrap: { height: 220 },
+  heroImage: { width: "100%", height: "100%" },
+  content: { padding: 16 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  title: { fontSize: 22, fontWeight: "700", flexShrink: 1 },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#EBF5FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
-
-  heroImage: {
-    width: "100%",
-    height: "100%",
+  verifiedText: { fontSize: 10, fontWeight: "800", color: PRIMARY_BLUE },
+  garageLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
   },
-
-  content: {
-    padding: 16,
-  },
-
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-
-  price: {
-    fontSize: 20,
-    color: "green",
+  garageNameText: { fontSize: 13, color: "#6B6B80", fontWeight: "600" },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    marginTop: 12,
     marginBottom: 20,
   },
-
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-
-  desc: {
+  price: { fontSize: 22, fontWeight: "800", color: "green" },
+  originalPrice: {
     fontSize: 14,
-    lineHeight: 20,
+    color: "#ABABC0",
+    textDecorationLine: "line-through",
   },
-
-  footer: {
-    padding: 16,
-  },
-
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  desc: { fontSize: 14, lineHeight: 20 },
+  footer: { padding: 16 },
   bookBtn: {
     backgroundColor: "#2563eb",
     padding: 14,
     borderRadius: 10,
     alignItems: "center",
   },
-
-  bookText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
+  bookBtnAdded: { backgroundColor: "#ef4444" },
+  bookText: { color: "#fff", fontWeight: "700" },
 });

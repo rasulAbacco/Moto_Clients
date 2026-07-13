@@ -9,15 +9,16 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import useAppStore from "../../../store/useAppStore";
+import { getLowestPriceForGarage } from "../../../utils/pricing";
 
 const PRIMARY_BLUE = "#007AFF";
 
-export default function GarageList({
-  garages,
-  loading,
-  selectedVehicleType = "SEDAN",
-}) {
+export default function GarageList({ garages, loading }) {
   const router = useRouter();
+  // ✅ Reads directly from the global store now — no more prop drilling
+  // selectedVehicleType down from HomeScreen -> SectionRenderer -> here.
+  const activeVehicleType = useAppStore((s) => s.activeVehicleType);
 
   if (loading)
     return (
@@ -32,68 +33,28 @@ export default function GarageList({
       </View>
     );
 
-  const getLowestPrice = (garage, carType) => {
-    if (!garage.services?.length) return null;
-    const prices = [];
-    const typeKey = (carType || "").toUpperCase();
-    garage.services.forEach((main) => {
-      main.sections?.forEach((section) => {
-        section.services?.forEach((svc) => {
-          if (svc.pricing?.length) {
-            const match = svc.pricing.find((p) => p.carType === typeKey);
-            if (match) {
-              const price = parseFloat(match.price || 0);
-              const discount = parseFloat(match.discount || 0);
-
-              let finalPrice;
-
-              if (discount > 0 && discount <= 100) {
-                // percentage discount (10 = 10%)
-                finalPrice = price - (price * discount) / 100;
-              } else {
-                // flat discount (100 = ₹100)
-                finalPrice = price - discount;
-              }
-
-              prices.push(Math.max(finalPrice, 0));
-            }
-          } else if (svc.price != null) {
-            prices.push(parseFloat(svc.price));
-          }
-        });
-      });
-    });
-    return prices.length ? Math.min(...prices) : null;
-  };
-
   const renderItem = ({ item }) => {
     const garageId = item.id ?? item.userId;
-    const lowestPrice = getLowestPrice(item, selectedVehicleType);
+    const lowestPrice = getLowestPriceForGarage(item, activeVehicleType);
 
     return (
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.9}
         onPress={() =>
+          // ✅ ID-driven navigation only. ServiceGrid fetches the full
+          // nested service tree itself on mount via garageId.
           router.push({
             pathname: "/garage-services",
-            params: {
-              garageId,
-              garageName: item.companyName || item.name,
-              services: JSON.stringify(item.services),
-              carType: selectedVehicleType,
-              garage: JSON.stringify(item),
-            },
+            params: { garageId },
           })
         }
       >
-        {/* Top: Verified Badge & Rating Row */}
         <View style={styles.cardHeader}>
           <View style={styles.verifiedBadge}>
             <Ionicons name="checkmark-circle" size={12} color={PRIMARY_BLUE} />
             <Text style={styles.verifiedText}>PRO</Text>
           </View>
-
           <View style={styles.ratingGroup}>
             <Ionicons name="star" size={10} color="#FFB800" />
             <Text style={styles.ratingText}>
@@ -102,7 +63,6 @@ export default function GarageList({
           </View>
         </View>
 
-        {/* Middle: Brand Info */}
         <View style={styles.cardBody}>
           <Text style={styles.name} numberOfLines={1}>
             {item.companyName || item.name}
@@ -115,13 +75,11 @@ export default function GarageList({
           </View>
         </View>
 
-        {/* Vehicle Type Tag (Added Back) */}
         <View style={styles.vehicleTypeTag}>
           <Ionicons name="car-sport" size={10} color={PRIMARY_BLUE} />
-          <Text style={styles.vehicleTypeText}>{selectedVehicleType}</Text>
+          <Text style={styles.vehicleTypeText}>{activeVehicleType}</Text>
         </View>
 
-        {/* Bottom: Pricing Section */}
         <View style={styles.cardFooter}>
           <View>
             <Text style={styles.priceLabel}>EST. STARTING</Text>
@@ -140,7 +98,6 @@ export default function GarageList({
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Nearby Workshops</Text>
-
       <FlatList
         data={garages}
         numColumns={2}
@@ -163,15 +120,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     letterSpacing: -0.5,
   },
-  columnWrapper: {
-    justifyContent: "space-between",
-  },
-  listContainer: {
-    paddingBottom: 10,
-  },
+  columnWrapper: { justifyContent: "space-between" },
+  listContainer: { paddingBottom: 10 },
   center: { padding: 40, alignItems: "center" },
   loaderText: { color: "#8E8E93", fontSize: 13, fontWeight: "500" },
-
   card: {
     width: "48%",
     backgroundColor: "#FFFFFF",
@@ -181,7 +133,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F0F0F0",
     justifyContent: "space-between",
-    minHeight: 175, // Increased height for the extra tag
+    minHeight: 175,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -206,25 +158,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     gap: 3,
   },
-  verifiedText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: PRIMARY_BLUE,
-  },
-  ratingGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
-  cardBody: {
-    marginTop: 10,
-    marginBottom: 6,
-  },
+  verifiedText: { fontSize: 9, fontWeight: "800", color: PRIMARY_BLUE },
+  ratingGroup: { flexDirection: "row", alignItems: "center", gap: 2 },
+  ratingText: { fontSize: 11, fontWeight: "700", color: "#1A1A1A" },
+  cardBody: { marginTop: 10, marginBottom: 6 },
   name: {
     fontSize: 15,
     fontWeight: "700",
@@ -237,12 +174,7 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 2,
   },
-  address: {
-    fontSize: 11,
-    color: "#8E8E93",
-    fontWeight: "500",
-    flex: 1,
-  },
+  address: { fontSize: 11, color: "#8E8E93", fontWeight: "500", flex: 1 },
   vehicleTypeTag: {
     flexDirection: "row",
     alignItems: "center",
@@ -275,11 +207,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginBottom: 2,
   },
-  priceValue: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: PRIMARY_BLUE,
-  },
+  priceValue: { fontSize: 16, fontWeight: "800", color: PRIMARY_BLUE },
   blueButton: {
     width: 24,
     height: 24,

@@ -1,3 +1,12 @@
+// PromoCarousel.jsx
+//
+// ⚠️ Only change: navigation no longer stringifies the full package
+// object into params — just packageId. This ASSUMES your
+// /package-details/[id] screen (not shared with me) fetches its own data
+// via `GET /packages/:id`. I don't have package.controller.js/service.js
+// to confirm that route exists — if it doesn't, tell me and I'll add it
+// alongside package.routes.js (which currently only has GET /).
+
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -51,7 +60,6 @@ export default function PremiumPromoCarousel({ banners = [] }) {
         contentContainerStyle={{ paddingHorizontal: 16 }}
         keyExtractor={(_, i) => i.toString()}
         renderItem={({ item }) => (
-          /* ✅ CHANGED: Removed outer TouchableOpacity to allow button click */
           <View style={styles.cardWrapper}>
             <LinearGradient
               colors={["#1e1b4b", "#312e81", "#4338ca"]}
@@ -99,36 +107,20 @@ export default function PremiumPromoCarousel({ banners = [] }) {
                   </Text>
                 </View>
 
-                {/* ✅ Button is now primary touch responder */}
                 <TouchableOpacity
                   style={styles.btn}
                   activeOpacity={0.7}
-                  onPress={() => {
-                    // ✅ Extract ID from multiple possible locations
-                    const extractedGarageId =
-                      item.garageId || item.userId || item.user?.id;
-
-                    if (!extractedGarageId) {
-                      console.error(
-                        "❌ DATA ERROR: No ID found in package item:",
-                        item,
-                      );
-                      alert(
-                        "Technical Error: Garage ID missing from this package.",
-                      );
-                      return;
-                    }
-
-                    const packageData = {
-                      ...item,
-                      garageId: extractedGarageId, // Normalize to garageId
-                    };
-
+                  onPress={() =>
+                    // ✅ FIX: package-details/[id].jsx reads `packageData` (a JSON
+                    // string), not the id, to build the page — it never fetches by id.
+                    // Passing only item.id left `packageData` undefined, so pkg was
+                    // always null and the screen rendered blank. We already have the
+                    // full package object in memory here, so just forward it.
                     router.push({
                       pathname: `/package-details/${item.id}`,
-                      params: { packageData: JSON.stringify(packageData) },
-                    });
-                  }}
+                      params: { packageData: JSON.stringify(item) },
+                    })
+                  }
                 >
                   <Text style={styles.btnText}>View Details</Text>
                   <Ionicons name="eye-outline" size={14} color="#fff" />
@@ -166,7 +158,6 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     marginRight: 16,
     borderRadius: 24,
-    // Add elevation to the wrapper
     shadowColor: "#000",
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -230,7 +221,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 14,
     gap: 6,
-    zIndex: 10, // Ensure it's on top
+    zIndex: 10,
   },
   btnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   decor: {

@@ -1,4 +1,17 @@
 //client\src\features\sos\components\SOSMapHeader.jsx
+//
+// ✅ CHANGED: switched from Google Maps tiles to OpenStreetMap tiles via
+// <UrlTile>. This removes the dependency on a Google Maps SDK API key
+// entirely — the previous crash on the built APK was because
+// app.json had no android.config.googleMaps.apiKey, so MapView threw a
+// native (non-JS-catchable) exception the instant it mounted. With
+// UrlTile + provider={null}, no Google key/config is required at all.
+//
+// ✅ Also added a `!location` guard alongside `denied` before rendering
+// MapView — previously there was a brief window where `loading` was
+// false and `denied` was false but `location` hadn't been set yet,
+// which would have thrown on `location.latitude` being null.
+
 import {
   View,
   Text,
@@ -8,7 +21,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import MapView, { Marker, Circle } from "react-native-maps";
+import MapView, { UrlTile, Marker, Circle } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
@@ -81,6 +94,10 @@ export default function SOSMapHeader() {
       setLoading(false);
     }
   };
+
+  // ✅ Covers: still loading, permission denied, OR location not yet set
+  // (guards against a null-location render race before MapView mounts).
+  const showPlaceholder = loading || denied || !location;
 
   return (
     <View style={styles.wrapper}>
@@ -171,9 +188,32 @@ export default function SOSMapHeader() {
               <Text style={styles.retryText}>Grant Access</Text>
             </TouchableOpacity>
           </View>
+        ) : !location ? (
+          // ✅ NEW: location still null even though loading/denied are both
+          // false (race window) — show the same loading placeholder
+          // instead of letting MapView read location.latitude on null.
+          <View
+            style={[
+              styles.mapPlaceholder,
+              { backgroundColor: theme.colors.card },
+            ]}
+          >
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text
+              style={[
+                styles.placeholderText,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
+              Fetching your location…
+            </Text>
+          </View>
         ) : (
           <MapView
             style={StyleSheet.absoluteFillObject}
+            // ✅ No Google provider — avoids requiring
+            // android.config.googleMaps.apiKey in app.json entirely.
+            provider={null}
             initialRegion={{
               latitude: location.latitude,
               longitude: location.longitude,
@@ -184,6 +224,16 @@ export default function SOSMapHeader() {
             showsCompass={false}
             showsMyLocationButton={false}
           >
+            {/* ✅ OpenStreetMap tile layer — free, no API key required.
+                For higher production traffic, consider a paid OSM tile
+                provider (MapTiler / Stadia Maps / Thunderforest) instead
+                of hitting the public tile.openstreetmap.org server hard. */}
+            <UrlTile
+              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+            />
+
             {/* Accuracy circle */}
             <Circle
               center={{

@@ -1,4 +1,17 @@
 // app/services/[id].jsx
+//
+// FIXED from the previous draft: cart actions now go through your real
+// `useCart()` hook (CartContext / CartProvider.jsx, AsyncStorage-backed)
+// instead of useAppStore — that was the bug that made "Add to Cart" look
+// like it silently did nothing (items went into a store nothing else read).
+//
+// CartProvider.addToCart() doesn't have built-in "different garage"
+// conflict detection — that check has to happen here, same as your
+// original file did it: inspect cartItems for an existing service/package
+// from a different garage before adding, and prompt to clear if so.
+//
+// Data resolution (garage cache -> Prisma catalog fallback) is unchanged
+// from the last version and still stands as-is.
 
 import {
   View,
@@ -16,113 +29,19 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../src/services/apiClient";
+import useAppStore from "../../src/store/useAppStore";
 import { useCart } from "../../src/hooks/useCart";
+import { getServicePrice } from "../../src/utils/pricing";
 
-// ─── Tokens ─────────────────────────────────────────────
 const C = {
   bg: "#FFFFFF",
   pageBg: "#F5F6FA",
-  card: "#FFFFFF",
-  cardBorder: "#EBEBF0",
   accent: "#0062ff",
-  green: "#16A34A",
-  greenLight: "#F0FDF4",
   text: "#111118",
   textSub: "#6B6B80",
   textMuted: "#ABABC0",
-  divider: "#F0F0F5",
-  priceColor: "#006fff",
-  oldPriceColor: "#ABABC0",
 };
 
-// ─── Price Helper ───────────────────────────────────────
-// Uses the selectedCarType to filter the service's pricing array
-const getServicePrice = (service, selectedCarType) => {
-  // ==============================
-  // 1. CAR-TYPE SPECIFIC PRICING
-  // ==============================
-  if (service.pricing && service.pricing.length > 0) {
-    const carTypeUpper = selectedCarType?.toUpperCase();
-
-    const pricingObj = service.pricing.find((p) => p.carType === carTypeUpper);
-
-    if (pricingObj) {
-      const price = parseFloat(pricingObj.price || 0);
-      const discount = parseFloat(pricingObj.discount || 0);
-      const discountType = pricingObj.discountType;
-
-      let finalPrice = price;
-
-      if (discountType === "PERCENTAGE") {
-        finalPrice = price - (price * discount) / 100;
-      } else if (discountType === "FLAT") {
-        finalPrice = price - discount;
-      } else {
-        // 🔥 FIX: handle missing discountType
-        if (discount > 0 && discount <= 100) {
-          finalPrice = price - (price * discount) / 100;
-        } else {
-          finalPrice = price - discount;
-        }
-      }
-
-      return Math.max(finalPrice, 0);
-    }
-  }
-
-  // ==============================
-  // 2. SERVICE LEVEL PRICING
-  // ==============================
-  if (service.price !== undefined && service.price !== null) {
-    const price = parseFloat(service.price || 0);
-    const discountValue = parseFloat(service.discountValue || 0);
-    const discountType = service.discountType;
-
-    let finalPrice = price;
-
-    if (discountType === "PERCENTAGE") {
-      finalPrice = price - (price * discountValue) / 100;
-    } else if (discountType === "FLAT") {
-      finalPrice = price - discountValue;
-    }
-
-    return Math.max(finalPrice, 0);
-  }
-
-  // ==============================
-  // 3. FALLBACK (LOWEST PRICE)
-  // ==============================
-  if (service.pricing && service.pricing.length > 0) {
-    const prices = service.pricing.map((p) => {
-      const price = parseFloat(p.price || 0);
-      const discount = parseFloat(p.discount || 0);
-
-      if (p.discountType === "PERCENTAGE") {
-        return price - (price * discount) / 100;
-      }
-
-      if (p.discountType === "FLAT") {
-        return price - discount;
-      }
-
-      // 🔥 FIX: fallback when no discountType
-      if (discount > 0 && discount <= 100) {
-        return price - (price * discount) / 100;
-      }
-
-      return price - discount;
-    });
-
-    return Math.max(Math.min(...prices), 0);
-  }
-
-  // ==============================
-  // 4. FINAL FALLBACK
-  // ==============================
-  return 0;
-};
-
-// ─── Service Card ───────────────────────────────────────
 function ServiceCard({
   service,
   index,
@@ -136,7 +55,8 @@ function ServiceCard({
   const slideAnim = useRef(new Animated.Value(16)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const { addToCart, removeFromCart, clearCart, cartItems } = useCart();
+  // ✅ Real cart — same source CartScreen/CartBar read from
+  const { cartItems, addToCart, removeFromCart, clearCart } = useCart();
 
   const isAdded = cartItems.find(
     (item) => String(item.id) === String(service.id),
@@ -167,15 +87,28 @@ function ServiceCard({
   const onPressOut = () =>
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
 
-  const finalPrice = getServicePrice(service, selectedCarType);
+  const { final: finalPrice, original: originalPrice } = getServicePrice(
+    service,
+    selectedCarType,
+  );
 
-  let originalPrice = service.price;
-  if (service.pricing) {
-    const pObj = service.pricing.find(
-      (p) => p.carType === selectedCarType?.toUpperCase(),
-    );
-    if (pObj) originalPrice = pObj.price;
-  }
+  const executeAddToCart = () => {
+    addToCart({
+      id: service.id,
+      title: service.name,
+      price: finalPrice,
+      carType: selectedCarType,
+      image: service.image || null,
+      source: "service",
+      slug: service.slug,
+      garageId,
+      garageName,
+      // ✅ FIX: CartScreen.proceedToNextStep() requires laborItem.garage
+      // (the full object) in addition to garageId — without it, checkout
+      // always shows "Missing Information."
+      garage,
+    });
+  };
 
   const handleCartAction = () => {
     if (isAdded) {
@@ -183,15 +116,19 @@ function ServiceCard({
       return;
     }
 
-    const existingService = cartItems.find((item) => item.source === "service");
+    // ✅ Restored from your original file: CartProvider doesn't know about
+    // "one garage at a time" — check it ourselves before adding.
+    const existingLaborItem = cartItems.find(
+      (i) => i.source === "service" || i.source === "package",
+    );
 
     if (
-      existingService &&
-      String(existingService.garageId) !== String(garageId)
+      existingLaborItem &&
+      String(existingLaborItem.garageId) !== String(garageId)
     ) {
       Alert.alert(
         "Replace Cart Items?",
-        `Your cart contains services from "${existingService.garageName}". You can only select services from one garage at a time. \n\nDo you want to clear your cart and add this service from "${garageName}"?`,
+        `Your cart contains services from "${existingLaborItem.garageName}". You can only select services from one garage at a time.\n\nClear your cart and add this service from "${garageName}"?`,
         [
           { text: "Cancel", style: "cancel" },
           {
@@ -203,31 +140,10 @@ function ServiceCard({
           },
         ],
       );
-    } else {
-      executeAddToCart();
-    }
-  };
-
-  const executeAddToCart = () => {
-    let garageObject = {};
-    try {
-      garageObject = typeof garage === "string" ? JSON.parse(garage) : garage;
-    } catch (e) {
-      console.log("Error parsing garage context", e);
+      return;
     }
 
-    addToCart({
-      id: service.id,
-      title: service.name,
-      price: finalPrice,
-      carType: selectedCarType,
-      image: service.image || null,
-      source: "service",
-      slug: service.slug,
-      garageId,
-      garageName,
-      garage: garageObject,
-    });
+    executeAddToCart();
   };
 
   return (
@@ -275,7 +191,6 @@ function ServiceCard({
   );
 }
 
-// ─── Section ────────────────────────────────────────────
 function Section({
   section,
   sectionIndex,
@@ -305,12 +220,7 @@ function Section({
           onPress={() =>
             router.push({
               pathname: "/sub-service/[id]",
-              params: {
-                id: service.id,
-                externalServiceId: service.slug,
-                carType: selectedCarType,
-                service: JSON.stringify(service),
-              },
+              params: { id: service.id, garageId },
             })
           }
         />
@@ -319,57 +229,58 @@ function Section({
   );
 }
 
-// ─── Screen ─────────────────────────────────────────────
 export default function ServiceDetailsScreen() {
-  const { id, mainService, garageId, garageName, garage, carType } =
-    useLocalSearchParams();
+  const { id, garageId, vehicleType } = useLocalSearchParams();
   const router = useRouter();
-  const { cartItems } = useCart();
 
-  const selectedCarType = carType || "SEDAN";
-
-  const total = cartItems.reduce(
-    (sum, item) => sum + item.price * (item.quantity || 1),
-    0,
-  );
+  const activeVehicleType = useAppStore((s) => s.activeVehicleType);
+  const getGarageById = useAppStore((s) => s.getGarageById);
+  const { cartItems, getTotal } = useCart(); // ✅ real cart for the bottom bar
 
   const [data, setData] = useState(null);
+  const [garage, setGarage] = useState(null);
+  const [garageName, setGarageName] = useState(null);
   const [loading, setLoading] = useState(true);
   const titleFade = useRef(new Animated.Value(0)).current;
   const titleSlide = useRef(new Animated.Value(-12)).current;
 
   useEffect(() => {
-    console.log(`[ServiceDetails] ID: ${id}, carType: ${carType}`);
+    init();
+  }, [id, garageId]);
 
-    if (mainService) {
-      try {
-        const parsed = JSON.parse(mainService);
-        setData(parsed);
-        setLoading(false);
-        Animated.parallel([
-          Animated.timing(titleFade, {
-            toValue: 1,
-            duration: 380,
-            useNativeDriver: true,
-          }),
-          Animated.timing(titleSlide, {
-            toValue: 0,
-            duration: 380,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      } catch {
-        loadService();
-      }
-    } else if (id) {
-      loadService();
-    }
-  }, [id, mainService, carType]);
-
-  const loadService = async () => {
+  const init = async () => {
+    setLoading(true);
     try {
-      const res = await api.get(`/services/${id}`);
-      setData(res.data);
+      const cachedGarage = getGarageById(garageId);
+      const mainService = cachedGarage?.services?.find(
+        (m) => String(m.id) === String(id),
+      );
+
+      if (mainService) {
+        setData(mainService);
+        setGarage(cachedGarage);
+        setGarageName(cachedGarage.companyName || cachedGarage.name);
+      } else if (id) {
+        // Confirmed-working route: GET /services/:id?vehicleType=
+        // Taken when there's no garageId (Home's plain category browsing).
+        const res = await api.get(`/services/${id}`, {
+          params: { vehicleType: vehicleType || activeVehicleType },
+        });
+        setData(res.data);
+      }
+
+      Animated.parallel([
+        Animated.timing(titleFade, {
+          toValue: 1,
+          duration: 380,
+          useNativeDriver: true,
+        }),
+        Animated.timing(titleSlide, {
+          toValue: 0,
+          duration: 380,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } catch (e) {
       console.log("Error fetching service details", e.message);
     } finally {
@@ -420,7 +331,7 @@ export default function ServiceDetailsScreen() {
           <View style={styles.infoBanner}>
             <Ionicons name="car-outline" size={16} color={C.accent} />
             <Text style={styles.infoBannerText}>
-              Showing prices for {selectedCarType}
+              Showing prices for {activeVehicleType}
             </Text>
           </View>
         </Animated.View>
@@ -434,7 +345,7 @@ export default function ServiceDetailsScreen() {
             garageId={garageId}
             garageName={garageName}
             garage={garage}
-            selectedCarType={selectedCarType}
+            selectedCarType={activeVehicleType}
           />
         ))}
         <View style={{ height: 100 }} />
@@ -444,7 +355,7 @@ export default function ServiceDetailsScreen() {
         <View style={styles.cartBar}>
           <View>
             <Text style={styles.cartCount}>{cartItems.length} items</Text>
-            <Text style={styles.cartTotal}>₹{total}</Text>
+            <Text style={styles.cartTotal}>₹{getTotal()}</Text>
           </View>
           <TouchableOpacity onPress={() => router.push("/cart")}>
             <Text style={styles.viewCartText}>View Cart</Text>
@@ -519,12 +430,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   vehicleTypeText: { fontSize: 10, color: "#6b7280", fontWeight: "700" },
-  saveBadge: {
-    backgroundColor: "#e6f7ed",
-    paddingHorizontal: 6,
-    borderRadius: 6,
-  },
-  saveBadgeText: { color: "#16A34A", fontSize: 11, fontWeight: "600" },
   addBtn: {
     marginTop: 8,
     backgroundColor: "#0062ff",
