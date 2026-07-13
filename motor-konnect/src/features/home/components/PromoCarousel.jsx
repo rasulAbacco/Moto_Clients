@@ -111,10 +111,14 @@ export default function PremiumPromoCarousel({ banners = [] }) {
                   style={styles.btn}
                   activeOpacity={0.7}
                   onPress={() =>
-                    // ✅ ID-only — package-details/[id] should fetch its own
-                    // data via GET /packages/:id (unconfirmed, see file note)
+                    // ✅ FIX: package-details/[id].jsx reads `packageData` (a JSON
+                    // string), not the id, to build the page — it never fetches by id.
+                    // Passing only item.id left `packageData` undefined, so pkg was
+                    // always null and the screen rendered blank. We already have the
+                    // full package object in memory here, so just forward it.
                     router.push({
                       pathname: `/package-details/${item.id}`,
+                      params: { packageData: JSON.stringify(item) },
                     })
                   }
                 >

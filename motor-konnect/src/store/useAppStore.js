@@ -17,7 +17,8 @@ import { create } from "zustand";
 // TODO: uncomment once vehicle.service.js is confirmed
 // import { getSelectedVehicle, setSelectedVehicle } from "../features/vehicle/vehicle.service";
 
-const BASE_URL = "https://x59j71v4-8000.inc1.devtunnels.ms/api/v1"; // TODO: move to env var
+// const BASE_URL = "https://x59j71v4-8000.inc1.devtunnels.ms/api/v1"; // TODO: move to env var
+const BASE_URL = "https://moto-clients.onrender.com/api/v1"; // TODO: move to env var
 
 const useAppStore = create((set, get) => ({
   // ────────────────────────────────

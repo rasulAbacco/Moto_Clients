@@ -5,6 +5,8 @@
 // active-services list. Two independent tap targets:
 //   - Card body -> navigates to /sub-service/[id] (full detail page)
 //   - "Add"/"Added" button -> adds/removes from cart in place, no nav
+//
+// ✅ Grid layout: rendered 2-per-row (see ServiceCardList numColumns=2).
 
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useRouter } from "expo-router";
@@ -44,9 +46,7 @@ export default function ServiceCard({ item, garage }) {
 
   const handleButtonPress = (e) => {
     // Defensive: prevent this tap from also bubbling into the card's own
-    // onPress (which navigates to the detail page) — if that happened,
-    // you'd get silently navigated away right after adding, which looks
-    // exactly like "nothing happened" on Home.
+    // onPress (which navigates to the detail page).
     e?.stopPropagation?.();
 
     if (added) {
@@ -69,7 +69,7 @@ export default function ServiceCard({ item, garage }) {
 
   return (
     <TouchableOpacity
-      style={styles.row}
+      style={styles.card}
       activeOpacity={0.85}
       onPress={handleCardPress}
     >
@@ -81,38 +81,31 @@ export default function ServiceCard({ item, garage }) {
             resizeMode="cover"
           />
         ) : (
-          <Ionicons name="construct-outline" size={22} color="#B0B0B8" />
+          <Ionicons name="construct-outline" size={26} color="#B0B0B8" />
+        )}
+
+        {item.garageVerified && (
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark-circle" size={10} color={PRIMARY_BLUE} />
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
         )}
       </View>
 
       <View style={styles.info}>
-        <View style={styles.nameRow}>
-          <Text style={styles.serviceName} numberOfLines={1}>
-            {item.serviceName ?? item.name}
-          </Text>
-          {item.garageVerified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons
-                name="checkmark-circle"
-                size={10}
-                color={PRIMARY_BLUE}
-              />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
-          )}
-        </View>
+        <Text style={styles.serviceName} numberOfLines={2}>
+          {item.serviceName ?? item.name}
+        </Text>
 
         <View style={styles.garageLine}>
-          <Ionicons name="storefront-outline" size={11} color="#8E8E93" />
+          <Ionicons name="storefront-outline" size={10} color="#8E8E93" />
           <Text style={styles.garageName} numberOfLines={1}>
             {item.garageName ?? "Unknown Garage"}
           </Text>
-          <Ionicons
-            name="star"
-            size={11}
-            color="#FFB800"
-            style={{ marginLeft: 6 }}
-          />
+        </View>
+
+        <View style={styles.ratingRow}>
+          <Ionicons name="star" size={11} color="#FFB800" />
           <Text style={styles.rating}>
             {Number(item.garageRating ?? 4.5).toFixed(1)}
           </Text>
@@ -138,76 +131,78 @@ export default function ServiceCard({ item, garage }) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
+  card: {
+    width: "48%",
     backgroundColor: "#fff",
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 12,
-    marginBottom: 10,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: "#F0F0F0",
-    gap: 10,
   },
   imageWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
+    width: "100%",
+    height: 90,
+    borderRadius: 12,
     backgroundColor: "#F5F6FA",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    marginBottom: 10,
   },
   image: { width: "100%", height: "100%" },
-  info: { flex: 1 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  serviceName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    flexShrink: 1,
-  },
   verifiedBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    backgroundColor: "#EBF5FF",
+    backgroundColor: "rgba(255,255,255,0.92)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  verifiedText: { fontSize: 9, fontWeight: "800", color: PRIMARY_BLUE },
+  verifiedText: { fontSize: 8, fontWeight: "800", color: PRIMARY_BLUE },
+  info: { marginBottom: 10 },
+  serviceName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    minHeight: 34, // keeps 2-line names aligned across the row
+  },
   garageLine: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 4,
+    marginTop: 6,
   },
-  garageName: {
-    fontSize: 11,
-    color: "#8E8E93",
-    fontWeight: "500",
-    flexShrink: 1,
+  garageName: { fontSize: 11, color: "#8E8E93", fontWeight: "500", flex: 1 },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 3,
   },
   rating: { fontSize: 11, color: "#1a1a1a", fontWeight: "600" },
   priceRow: {
     flexDirection: "row",
     alignItems: "baseline",
     gap: 6,
-    marginTop: 4,
+    marginTop: 5,
   },
   price: { fontSize: 15, fontWeight: "800", color: PRIMARY_BLUE },
   originalPrice: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#B0B0B8",
     textDecorationLine: "line-through",
   },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 4,
     backgroundColor: PRIMARY_BLUE,
-    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
   },
