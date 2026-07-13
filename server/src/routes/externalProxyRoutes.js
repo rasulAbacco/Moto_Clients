@@ -4,10 +4,10 @@ import axios from "axios";
 const router = express.Router();
 
 // ← Different base paths for different CRM route groups
-const CRM_V1 = "http://localhost:5001/api/v1"; // for /external/users
-const CRM_API = "http://localhost:5001/api"; // for /marketplace/...
-// const CRM_V1 = "https://auto-garage-crm-zrxc.onrender.com/api/v1"; // for /external/users
-// const CRM_API = "https://auto-garage-crm-zrxc.onrender.com/api"; // for /marketplace/...
+// const CRM_V1 = "http://localhost:5001/api/v1"; // for /external/users
+// const CRM_API = "http://localhost:5001/api"; // for /marketplace/...
+const CRM_V1 = "https://auto-garage-crm-zrxc.onrender.com/api/v1"; // for /external/users
+const CRM_API = "https://auto-garage-crm-zrxc.onrender.com/api"; // for /marketplace/...
 
 router.get("/external/users", async (req, res) => {
   try {
