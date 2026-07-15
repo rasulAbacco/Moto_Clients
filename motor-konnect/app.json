@@ -3,9 +3,9 @@
   "expo": {
     "name": "MotorKonnect",
     "slug": "motorkonnect",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/IconOnly_NoBuffer.png",
+    "icon": "./assets/images/IconOnly111.png",
     "scheme": "client",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,9 +18,9 @@
     },
     "android": {
       "package": "com.abacco.motorkonnect",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/IconOnly_NoBuffer.png",
+        "foregroundImage": "./assets/images/IconOnly111.png",
         "backgroundColor": "#0B1F3A"
       },
       "edgeToEdgeEnabled": true,
@@ -40,7 +40,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/FullLogo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
