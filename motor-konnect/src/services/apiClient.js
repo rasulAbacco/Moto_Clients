@@ -15,6 +15,10 @@ const getBaseURL = () => {
   return "https://moto-clients.onrender.com/api";
 };
 
+// 🆕 Root server URL (no "/api" suffix) — needed by socket.io-client, which
+// connects to the host itself, not a REST path.
+export const getSocketBaseURL = () => getBaseURL().replace(/\/api\/?$/, "");
+
 const api = axios.create({
   baseURL: getBaseURL(),
   timeout: 10000,

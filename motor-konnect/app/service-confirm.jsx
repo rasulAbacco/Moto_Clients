@@ -18,6 +18,10 @@ import { useCart } from "../src/hooks/useCart";
 import { useAuth } from "../src/providers/AuthProvider";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  connectSocket,
+  subscribeToBookingUpdates,
+} from "../src/services/socket.service";
 
 // const BASE_URL = "https://x59j71v4-8000.inc1.devtunnels.ms/api/v1";
 const BASE_URL = "https://moto-clients.onrender.com/api/v1";
@@ -37,9 +41,20 @@ export default function ServiceConfirmScreen() {
   const countdownRef = useRef(null);
   const pollRef = useRef(null);
   const bookedAtRef = useRef(null);
+  const bookingIdRef = useRef(null);
 
   const { garageId, name, garage } = useLocalSearchParams();
   const garageData = garage ? JSON.parse(garage) : null;
+
+  // 🆕 Selected vehicle for this booking. Same shape confirmed in
+  // profile.jsx's `primaryVehicle = user?.vehicles?.[0]`:
+  //   { id, registration, vehicleType: { name }, brand: { name },
+  //     model: { name }, modelYear: { year }, fuel? }
+  // If the booking flow has its own vehicle-picker state somewhere
+  // upstream (e.g. attached to the cart item), that takes priority;
+  // otherwise we fall back to the user's primary registered vehicle.
+  const selectedVehicle =
+    cartItems?.[0]?.selectedVehicle || user?.vehicles?.[0] || null;
 
   const total = cartItems.reduce(
     (sum, item) => sum + item.price * (item.quantity || 1),
@@ -111,6 +126,41 @@ export default function ServiceConfirmScreen() {
     };
   }, [bookingState]);
 
+  // 🆕 Fast path: listen for the real-time socket push from Motor Desk.
+  // This usually resolves the screen instantly instead of waiting on the
+  // next 5-second poll tick. The poll above stays as a fallback in case
+  // the socket connection drops or the event is missed.
+  useEffect(() => {
+    if (bookingState !== "waiting") return;
+    if (!user?.phone) return;
+
+    connectSocket(user.phone);
+
+    const unsubscribe = subscribeToBookingUpdates((payload) => {
+      if (
+        !bookingIdRef.current ||
+        String(payload.id) !== String(bookingIdRef.current)
+      ) {
+        return; // not this booking
+      }
+      if (payload.status !== "ACCEPTED" && payload.status !== "REJECTED") {
+        return;
+      }
+
+      clearInterval(countdownRef.current);
+      clearInterval(pollRef.current);
+      setBookingNotification({
+        body:
+          payload.status === "ACCEPTED"
+            ? `Your booking for ${payload.serviceName || "the service"} has been accepted!`
+            : `Your booking for ${payload.serviceName || "the service"} could not be confirmed.`,
+      });
+      setBookingState(payload.status === "ACCEPTED" ? "accepted" : "rejected");
+    });
+
+    return unsubscribe;
+  }, [bookingState, user?.phone]);
+
   useEffect(() => {
     if (bookingState === "waiting" && countdown === 0) {
       clearInterval(pollRef.current);
@@ -180,10 +230,24 @@ export default function ServiceConfirmScreen() {
           packageId: primaryItem.id,
           packageName: primaryItem.title,
         }),
+
+        // 🆕 Real vehicle details for this booking, pulled from the
+        // customer's registered vehicle (same data shown on Profile /
+        // Registered Vehicles). Sent as plain strings/numbers since the
+        // CRM stores a snapshot, not a live reference.
+        ...(selectedVehicle && {
+          vehicleMake: selectedVehicle.brand?.name || null,
+          vehicleModel: selectedVehicle.model?.name || null,
+          vehicleRegNumber: selectedVehicle.registration || null,
+          vehicleYear: selectedVehicle.modelYear?.year || null,
+          vehicleFuelType:
+            selectedVehicle.fuel || selectedVehicle.fuelType || null,
+        }),
       };
 
       console.log("📤 Sending payload:", JSON.stringify(payload, null, 2));
-      await axios.post(`${BASE_URL}/marketplace/book`, payload);
+      const bookRes = await axios.post(`${BASE_URL}/marketplace/book`, payload);
+      bookingIdRef.current = bookRes?.data?.data?.id || null;
 
       clearCart();
       setBookingState("waiting");
@@ -300,6 +364,43 @@ export default function ServiceConfirmScreen() {
             <Text style={styles.label}>Email</Text>
             <Text style={styles.value}>
               {garageData?.email || "Not Available"}
+            </Text>
+          </View>
+        </View>
+
+        {/* 🆕 Vehicle Details */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="car-sport" size={18} color="#0062ff" />
+            <Text style={styles.sectionTitle}>Vehicle Details</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Vehicle</Text>
+            <Text style={styles.value}>
+              {selectedVehicle
+                ? `${selectedVehicle.brand?.name || ""} ${selectedVehicle.model?.name || ""}`.trim() ||
+                  "Not Available"
+                : "Not Available"}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Registration No.</Text>
+            <Text style={styles.value}>
+              {selectedVehicle?.registration || "Not Available"}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Year</Text>
+            <Text style={styles.value}>
+              {selectedVehicle?.modelYear?.year || "Not Available"}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Fuel Type</Text>
+            <Text style={styles.value}>
+              {selectedVehicle?.fuel ||
+                selectedVehicle?.fuelType ||
+                "Not Available"}
             </Text>
           </View>
         </View>

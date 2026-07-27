@@ -12,6 +12,7 @@ import LocationModal from "./LocationModal.jsx";
 import * as Location from "expo-location";
 import { useAuth } from "../../../providers/AuthProvider.jsx";
 import api from "../../../services/apiClient.js";
+import useAppStore from "../../../store/useAppStore";
 
 export default function HomeHeader() {
   const { theme } = useTheme();
@@ -21,13 +22,18 @@ export default function HomeHeader() {
   const [city, setCity] = useState(null);
   const [fullAddress, setFullAddress] = useState(null);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  // 🆕 This is the missing wire: Home's pricing (ServiceCard -> pricing.js)
+  // reads useAppStore's activeVehicleType, but nothing was ever calling
+  // its setter — so it stayed stuck on the hardcoded "SEDAN" default no
+  // matter which vehicle was actually selected.
+  const setActiveVehicleType = useAppStore((s) => s.setActiveVehicleType);
 
   // ✅ Runs every time Home screen comes into focus (e.g. back from VehiclesScreen)
   useFocusEffect(
     useCallback(() => {
       fetchLiveLocation();
       loadVehicle();
-    }, [user])
+    }, [user]),
   );
 
   const fetchLiveLocation = async () => {
@@ -76,18 +82,32 @@ export default function HomeHeader() {
           const normalized = normalizeApiVehicle(primary);
           setVehicle(normalized);
           await setSelectedVehicle(normalized);
+          // 🆕 THE FIX: propagate the real vehicle segment (SEDAN/SUV/
+          // LUXURY/etc — matches the exact carType keys your CRM pricing
+          // uses, confirmed against MarketplacePricing.jsx) into the
+          // store that ServiceCard/pricing.js actually reads from.
+          if (normalized.model?.segment) {
+            setActiveVehicleType(normalized.model.segment);
+          }
         } else {
           setVehicle(null);
         }
       } else {
         const v = await getSelectedVehicle();
         setVehicle(v);
+        // 🆕 Same fix for guest users (vehicle picked before login).
+        if (v?.model?.segment) {
+          setActiveVehicleType(v.model.segment);
+        }
       }
     } catch (e) {
       console.log("HomeHeader loadVehicle error:", e.message);
       try {
         const v = await getSelectedVehicle();
         setVehicle(v);
+        if (v?.model?.segment) {
+          setActiveVehicleType(v.model.segment);
+        }
       } catch {}
     }
   };
@@ -207,7 +227,10 @@ export default function HomeHeader() {
 
             {vehicle.model?.segment ? (
               <View
-                style={[styles.segmentBadge, { backgroundColor: accent + "15" }]}
+                style={[
+                  styles.segmentBadge,
+                  { backgroundColor: accent + "15" },
+                ]}
               >
                 <Text style={[styles.segmentText, { color: accent }]}>
                   {vehicle.model.segment.replace("_", " ")}
