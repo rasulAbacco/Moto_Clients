@@ -16,8 +16,8 @@ import { useAuth } from "../../../providers/AuthProvider";
 import { useTheme } from "../../../hooks/useTheme";
 import axios from "axios";
 
-const BASE_URL = "https://cqw6v494-8000.inc1.devtunnels.ms/api/v1";
-// const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
 
 const STATUS_COLORS = {
   PENDING: "#f59e0b",

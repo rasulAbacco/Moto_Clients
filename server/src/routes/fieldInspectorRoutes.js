@@ -1,0 +1,261 @@
+import { Router } from "express";
+import { uploadFields } from "../middleware/upload.middleware.js";
+import {
+  authenticateUser,
+  requireAuth,
+  authorizeRoles,
+} from "../middleware/authMiddleware.js";
+import {
+  getDashboardStats,
+  getTodaySchedule,
+  getPendingInspections,
+  getUpcomingInspections,
+  getRecentCompleted,
+  getMyInspections,
+  getInProgressInspections,
+  getCompletedInspections,
+  getInspectionById,
+  acceptInspection,
+  startInspection,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  getReports,
+  getReportById,
+  getProfile,
+  updateSellerVerification,
+  updateDocumentVerification,
+  updateVehicleIdentity,
+  updateVehicleCheck,
+  updateTestDrive,
+  updateLocation,
+  uploadInspectionPhoto,
+  deleteInspectionPhoto,
+  saveInspectionDraft,
+  submitInspection,
+  updateProfile,
+  changePassword,
+  getCalendarInspections,
+} from "../controllers/fieldInspectorController.js";
+
+const router = Router();
+const INSPECTOR_ROLES = ["FIELD_INSPECTOR", "ADMIN", "SUPER_ADMIN"];
+const photoUpload = uploadFields([{ name: "photos", maxCount: 20 }]);
+
+router.get(
+  "/dashboard/inspector",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getDashboardStats,
+);
+router.get(
+  "/dashboard/today-schedule",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getTodaySchedule,
+);
+router.get(
+  "/dashboard/pending-inspections",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getPendingInspections,
+);
+router.get(
+  "/dashboard/upcoming-inspections",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getUpcomingInspections,
+);
+router.get(
+  "/dashboard/recent-completed",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getRecentCompleted,
+);
+
+router.get(
+  "/inspections/my-inspections",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getMyInspections,
+);
+router.get(
+  "/inspections/in-progress",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getInProgressInspections,
+);
+router.get(
+  "/inspections/completed",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getCompletedInspections,
+);
+router.get(
+  "/inspections/:id",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getInspectionById,
+);
+router.post(
+  "/inspections/:id/accept",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  acceptInspection,
+);
+router.post(
+  "/inspections/:id/start",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  startInspection,
+);
+
+router.get(
+  "/notifications",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getNotifications,
+);
+router.post(
+  "/notifications/:notificationId/read",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  markNotificationRead,
+);
+router.post(
+  "/notifications/read",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  markAllNotificationsRead,
+);
+
+router.get(
+  "/profile",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getProfile,
+);
+
+router.get(
+  "/reports",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getReports,
+);
+router.get(
+  "/reports/:id",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getReportById,
+);
+router.patch(
+  "/profile",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+);
+router.post(
+  "/profile/change-password",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+);
+
+router.get(
+  "/calendar",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  getCalendarInspections,
+);
+//=====================INSPECTION UPDATE ROUTES================================
+router.patch(
+  "/inspections/:id/draft",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  saveInspectionDraft,
+);
+router.patch(
+  "/inspections/:id/seller-verification",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  updateSellerVerification,
+);
+router.patch(
+  "/inspections/:id/document-verification",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  updateDocumentVerification,
+);
+router.patch(
+  "/inspections/:id/vehicle-identity",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  updateVehicleIdentity,
+);
+router.patch(
+  "/inspections/:id/vehicle-check",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  updateVehicleCheck,
+);
+router.patch(
+  "/inspections/:id/test-drive",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  updateTestDrive,
+);
+router.patch(
+  "/inspections/:id/location",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  updateLocation,
+);
+router.post(
+  "/inspections/:id/photos",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  photoUpload,
+  uploadInspectionPhoto,
+);
+router.delete(
+  "/inspections/:id/photos/:photoId",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  deleteInspectionPhoto,
+);
+router.post(
+  "/inspections/:id/submit",
+  authenticateUser,
+  requireAuth,
+  authorizeRoles(...INSPECTOR_ROLES),
+  submitInspection,
+);
+
+export default router;

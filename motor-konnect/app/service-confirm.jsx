@@ -19,8 +19,8 @@ import { useAuth } from "../src/providers/AuthProvider";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 
-// const BASE_URL = "https://x59j71v4-8000.inc1.devtunnels.ms/api/v1";
-const BASE_URL = "https://moto-clients.onrender.com/api/v1";
+const BASE_URL =
+ process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
 const WAIT_SECONDS = 35;
 const POLL_INTERVAL_MS = 5000;
 

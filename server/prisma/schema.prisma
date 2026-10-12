@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+//  Moto_clients 
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,20 +15,41 @@ datasource db {
 // ==========================================
 
 model User {
-  id               String       @id @default(uuid())
-  name             String
-  phone            String       @unique
-  email            String?
-  dob              String?
-  profileImage     Bytes?
-  profileImageType String?
-  role             Role         @default(USER)
-  isActive         Boolean      @default(true)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  address          UserAddress?
-  vehicles         Vehicle[]
-  bookings         Booking[]
+  id         String   @id @default(uuid())
+  email      String   @unique
+  username   String?  @unique
+  password   String?
+  role       Role     @default(BUYER)
+  fullName   String?
+  lastName   String?
+  phone      String?  @unique
+  avatar     String?
+  isVerified Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  isBlocked  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  address      UserAddress?
+  vehicles     Vehicle[] // vehicles owned by the user for service bookings
+  bookings     Booking[]
+  activityLogs ActivityLog[]
+
+  // ---- Marketplace additions ----
+  sellerProfile   SellerProfile? // populated only when the user registers as a seller (role = SELLER)
+  vehicleListings VehicleListing[] // vehicles this user has listed for sale
+
+  // ---- Field inspection additions ----
+  sellerInspections       FieldInspection[]        @relation("SellerInspections")
+  inspectorInspections    FieldInspection[]        @relation("InspectorInspections")
+  assignedInspections     FieldInspection[]        @relation("AdminAssignedInspections")
+  inspectionNotifications InspectionNotification[] @relation("InspectionNotifications")
+  sellerNotifications     SellerNotification[]     @relation("SellerNotifications")
+  buyerNotifications      BuyerNotification[]      @relation("BuyerNotifications")
+  wishlist                Wishlist[]               @relation("BuyerWishlist")
+  // ---- Buyer Purchase Requests ----
+  buyerPurchaseRequests   PurchaseRequest[]        @relation("BuyerPurchaseRequests")
+  sellerPurchaseRequests  PurchaseRequest[]        @relation("SellerPurchaseRequests")
 }
 
 model UserAddress {
@@ -39,8 +63,186 @@ model UserAddress {
   user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Wishlist {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation("BuyerWishlist", fields: [userId], references: [id], onDelete: Cascade)
+  vehicleListingId String
+  vehicleListing   VehicleListing @relation(fields: [vehicleListingId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@unique([userId, vehicleListingId])
+  @@index([userId])
+}
+
 // ==========================================
-// 🚗 VEHICLE MODEL SPECIFICATIONS
+// 📩 OTP VERIFICATION (mobile + email)
+// ==========================================
+
+model OTP {
+  id        String   @id @default(uuid())
+  mobile    String?
+  email     String?
+  otp       String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([mobile])
+  @@index([email])
+}
+
+// ==========================================
+// 🏪 SELLER REGISTRATION / BUSINESS PROFILE
+// ==========================================
+
+enum SellerType {
+  INDIVIDUAL
+  DEALER
+}
+
+enum SellerVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+  UNDER_REVIEW
+}
+
+enum DocumentType {
+  PAN_CARD
+  GST_CERTIFICATE
+  SHOP_LOGO
+  PROFILE_PHOTO
+  RC
+  INSURANCE
+  POLLUTION
+  INVOICE
+  SERVICE_BOOK
+  OWNERSHIP_PROOF
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  UNDER_REVIEW
+}
+
+model SellerProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sellerType   SellerType @default(INDIVIDUAL)
+  ownerName    String
+  businessName String?
+  description  String?
+
+  // Location
+  address String?
+  city    String?
+  state   String?
+  pincode String?
+  country String  @default("India")
+
+  // Legal / compliance
+  gstNumber String?
+  panNumber String?
+
+  // Business metadata
+  yearsInBusiness Int?
+  website         String?
+
+  // Bank / payout details
+  bankAccountHolder String?
+  bankAccountNumber String?
+  bankIFSC          String?
+  bankName          String?
+
+  // Branding
+  profilePhoto String?
+  shopLogo     String?
+
+  isRegistered Boolean @default(true)
+  isApproved   Boolean @default(false)
+
+  verificationStatus SellerVerificationStatus @default(PENDING)
+  rejectReason       String?
+  submittedAt        DateTime                 @default(now())
+  reviewedAt         DateTime?
+  reviewedBy         String? // admin User.id who approved/rejected
+
+  isElite      Boolean @default(false)
+  rating       Float   @default(0)
+  totalReviews Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents SellerDocument[]
+
+  @@index([verificationStatus])
+}
+
+model SellerNotification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("SellerNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("GENERAL") // SELLER_STATUS | VEHICLE_APPROVED | VEHICLE_REJECTED | VEHICLE_SOLD | INQUIRY | GENERAL
+  link      String? // optional frontend route to deep-link to
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model BuyerNotification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("BuyerNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("GENERAL")
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model SellerDocument {
+  id              String         @id @default(cuid())
+  sellerProfileId String
+  sellerProfile   SellerProfile  @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  type            DocumentType
+  fileUrl         String
+  status          DocumentStatus @default(PENDING)
+  uploadedAt      DateTime       @default(now())
+  verifiedAt      DateTime?
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // e.g. "vehicle.approved", "seller.rejected", "order.completed"
+  entityType String? // e.g. "Vehicle", "SellerProfile", "Order"
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
+
+// ==========================================
+// 🚗 VEHICLE MODEL SPECIFICATIONS (service-booking catalog — unchanged)
 // ==========================================
 
 model VehicleType {
@@ -103,6 +305,135 @@ model Vehicle {
 
   @@index([userId])
   @@index([vehicleTypeId])
+}
+
+// ==========================================
+// 🚙 VEHICLE LISTINGS (marketplace "Add Vehicle" form)
+// ==========================================
+
+enum VehicleListingStatus {
+  DRAFT
+  PENDING
+  UNDER_VERIFICATION
+  APPROVED
+  REJECTED
+  SOLD
+  ARCHIVED
+}
+
+model VehicleListing {
+  id   String  @id @default(uuid())
+  slug String? @unique
+
+  sellerId String
+  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  // ---- Basic Information ----
+  title              String
+  category           String
+  brand              String
+  model              String
+  variant            String?
+  registrationNumber String?
+  vin                String?
+
+  // ---- Pricing ----
+  price        Float
+  negotiable   Boolean @default(false)
+  emiAvailable Boolean @default(false)
+
+  // ---- Vehicle Details ----
+  manufacturingYear Int?
+  registrationYear  Int?
+  fuelType          String
+  transmission      String
+  kmDriven          Int?
+  ownership         String?
+  color             String?
+  seatingCapacity   Int?
+  engineCapacity    Int?
+  mileage           Float?
+
+  // ---- Documents ----
+  rcAvailable          Boolean   @default(true)
+  insuranceAvailable   Boolean   @default(true)
+  insuranceExpiry      DateTime?
+  pollutionCertificate Boolean   @default(true)
+  serviceBook          Boolean   @default(true)
+  numberOfKeys         Int       @default(2)
+  loanPending          Boolean   @default(false)
+  nocAvailable         Boolean   @default(true)
+
+  // ---- Condition ----
+  vehicleCondition String?
+  accidentHistory  Boolean @default(false)
+  floodDamage      Boolean @default(false)
+  engineCondition  String  @default("Good")
+  tyreCondition    String  @default("Good")
+  batteryCondition String  @default("Good")
+
+  // ---- Features ----
+  features String[]
+
+  // ---- Seller Info ----
+  sellerName   String?
+  mobileNumber String?
+  email        String?
+  sellerType   String  @default("Individual")
+  dealerName   String?
+
+  // ---- Location ----
+  country String  @default("India")
+  state   String?
+  city    String?
+  area    String?
+  pincode String?
+
+  // ---- Media ----
+  images            String[]
+  rcFront           String?
+  insuranceDocument String?
+  documents         String[]
+
+  description String?
+
+  // ---- Status / approval workflow ----
+  status     VehicleListingStatus @default(PENDING)
+  isFeatured Boolean              @default(false)
+  views      Int                  @default(0)
+
+  // ---- Rejection ----
+  rejectReason String?
+
+  // ---- Sale info (populated when status becomes SOLD) ----
+  soldToName  String?
+  soldToPhone String?
+  soldToEmail String?
+  soldPrice   Float?
+  soldAt      DateTime?
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  wishlist         Wishlist[]
+  VehicleInquiry   VehicleInquiry[]
+  fieldInspections FieldInspection[]
+  purchaseRequests PurchaseRequest[]
+
+  @@index([sellerId])
+  @@index([status])
+}
+
+model VehicleInquiry {
+  id               String         @id @default(uuid())
+  vehicleListingId String
+  vehicleListing   VehicleListing @relation(fields: [vehicleListingId], references: [id], onDelete: Cascade)
+  buyerName        String
+  buyerContact     String?
+  buyerUserId      String?
+  status           String         @default("INTERESTED") // INTERESTED | PURCHASED | LOST_INTEREST
+  createdAt        DateTime       @default(now())
+
+  @@index([vehicleListingId])
 }
 
 // ==========================================
@@ -321,7 +652,11 @@ model Payment {
 
 enum Role {
   USER
+  SELLER
+  DEALER
   ADMIN
+  BUYER
+  FIELD_INSPECTOR
 }
 
 enum BookingStatus {
@@ -351,4 +686,263 @@ enum VehicleSegment {
   SUPER_LUXURY
   PICKUP
   VAN
+}
+
+enum InspectionStatus {
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  RE_VERIFICATION
+  COMPLETED
+  REJECTED
+}
+
+enum InspectionResult {
+  PENDING
+  VERIFIED
+  REJECTED
+  NEEDS_CORRECTION
+}
+
+enum InspectionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  NEEDS_CORRECTION
+}
+
+enum ConditionStatus {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+}
+
+enum DocumentVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  MISSING
+  EXPIRED
+  MISMATCH
+}
+
+model FieldInspection {
+  id           String @id @default(uuid())
+  inspectionNo String @unique @default(cuid())
+
+  vehicleListingId String
+  vehicleListing   VehicleListing @relation(fields: [vehicleListingId], references: [id], onDelete: Cascade)
+
+  sellerId String
+  seller   User   @relation("SellerInspections", fields: [sellerId], references: [id])
+
+  inspectorId String
+  inspector   User   @relation("InspectorInspections", fields: [inspectorId], references: [id])
+
+  assignedById String?
+  assignedBy   User?   @relation("AdminAssignedInspections", fields: [assignedById], references: [id])
+
+  status   InspectionStatus   @default(ASSIGNED)
+  result   InspectionResult   @default(PENDING)
+  priority InspectionPriority @default(MEDIUM)
+
+  assignedAt  DateTime  @default(now())
+  acceptedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  scheduledDate DateTime?
+  deadline      DateTime?
+
+  finalRating      Int?
+  finalNotes       String?
+  rejectionReason  String?
+  correctionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  checklist     InspectionChecklist?
+  documents     InspectionDocumentVerification[]
+  vehicleChecks InspectionVehicleCheck[]
+  photos        InspectionPhoto[]
+  location      InspectionLocation?
+
+  @@index([inspectorId])
+  @@index([sellerId])
+  @@index([vehicleListingId])
+  @@index([status])
+}
+
+model InspectionChecklist {
+  id String @id @default(uuid())
+
+  inspectionId String          @unique
+  inspection   FieldInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  sellerVerified          Boolean @default(false)
+  documentsVerified       Boolean @default(false)
+  vehicleIdentityVerified Boolean @default(false)
+  exteriorVerified        Boolean @default(false)
+  interiorVerified        Boolean @default(false)
+  mechanicalVerified      Boolean @default(false)
+  testDriveCompleted      Boolean @default(false)
+  locationVerified        Boolean @default(false)
+  photosCompleted         Boolean @default(false)
+
+  sellerNotes     String?
+  documentNotes   String?
+  identityNotes   String?
+  exteriorNotes   String?
+  interiorNotes   String?
+  mechanicalNotes String?
+  testDriveNotes  String?
+  locationNotes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InspectionDocumentVerification {
+  id              String                     @id @default(uuid())
+  inspectionId    String
+  inspection      FieldInspection            @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  documentType    String
+  documentUrl     String?
+  documentNumber  String?
+  status          DocumentVerificationStatus @default(PENDING)
+  remarks         String?
+  rejectionReason String?
+  verifiedAt      DateTime?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  @@unique([inspectionId, documentType])
+  @@index([inspectionId])
+}
+
+model InspectionVehicleCheck {
+  id String @id @default(uuid())
+
+  inspectionId String
+  inspection   FieldInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  category String // e.g. "Exterior", "Interior", "Mechanical"
+  item     String // e.g. "Front Bumper", "AC", "Brakes"
+
+  condition ConditionStatus?
+  status    VerificationStatus @default(PENDING)
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([inspectionId])
+}
+
+model InspectionPhoto {
+  id String @id @default(uuid())
+
+  inspectionId String
+  inspection   FieldInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  category String
+  imageUrl String
+
+  latitude  Float?
+  longitude Float?
+
+  capturedAt DateTime?
+  uploadedAt DateTime  @default(now())
+
+  remarks String?
+
+  @@index([inspectionId])
+}
+
+model InspectionLocation {
+  id String @id @default(uuid())
+
+  inspectionId String          @unique
+  inspection   FieldInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  expectedAddress   String?
+  expectedLatitude  Float?
+  expectedLongitude Float?
+
+  actualAddress   String?
+  actualLatitude  Float?
+  actualLongitude Float?
+
+  locationMatched Boolean @default(false)
+  vehiclePresent  Boolean @default(false)
+  sellerPresent   Boolean @default(false)
+
+  remarks String?
+
+  capturedAt DateTime?
+}
+
+model InspectionNotification {
+  id           String  @id @default(uuid())
+  userId       String
+  user         User    @relation("InspectionNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  inspectionId String?
+
+  title   String
+  message String
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// =============Buyer Purchase Inquiry (Request to Seller)====================
+
+enum PurchaseRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model PurchaseRequest {
+  id               String         @id @default(uuid())
+  vehicleListingId String
+  vehicleListing   VehicleListing @relation(fields: [vehicleListingId], references: [id], onDelete: Cascade)
+
+  buyerId String
+  buyer   User   @relation("BuyerPurchaseRequests", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  sellerId String
+  seller   User   @relation("SellerPurchaseRequests", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  offerPrice Float
+  buyerName  String
+  buyerPhone String
+  buyerEmail String?
+  message    String?
+
+  status       PurchaseRequestStatus @default(PENDING)
+  rejectReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vehicleListingId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
 }

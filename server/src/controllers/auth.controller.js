@@ -9,6 +9,10 @@ const __dirname = path.dirname(__filename);
 const carsPath = path.join(__dirname, "../data/cars-data.json");
 const bikesPath = path.join(__dirname, "../data/bikes-data.json");
 
+import jwt from "jsonwebtoken";
+import { jwtSecret } from "../config/jwt.js";
+//import { sendOtp, verifyOtp } from "../controllers/auth.controller.js";
+
 // ─────────────────────────────────────────────
 // GET /me  — full profile with address + vehicles
 // ─────────────────────────────────────────────
@@ -620,3 +624,4 @@ export const setPrimaryVehicle = async (req, res, next) => {
     next(err);
   }
 };
+

@@ -14,8 +14,8 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-// const BASE_URL = "https://x59j71v4-8000.inc1.devtunnels.ms/api/v1";
-const BASE_URL = "https://moto-clients.onrender.com/api/v1";
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
 
 export default function ServiceGarageScreen() {
   const router = useRouter();
@@ -32,7 +32,9 @@ export default function ServiceGarageScreen() {
       console.log("Fetching garages from:", url);
 
       const res = await axios.get(url, {
-        headers: { "x-api-key": process.env.EXPO_PUBLIC_API_KEY },
+        headers: {
+          "x-api-key": process.env.EXPO_PUBLIC_API_KEY || "your_super_secret_key_here",
+        },
         timeout: 10000,
       });
 

@@ -17,8 +17,9 @@ import { create } from "zustand";
 // TODO: uncomment once vehicle.service.js is confirmed
 // import { getSelectedVehicle, setSelectedVehicle } from "../features/vehicle/vehicle.service";
 
-// const BASE_URL = "https://x59j71v4-8000.inc1.devtunnels.ms/api/v1"; // TODO: move to env var
-const BASE_URL = "https://moto-clients.onrender.com/api/v1"; // TODO: move to env var
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
+const API_KEY = process.env.EXPO_PUBLIC_API_KEY || "your_super_secret_key_here";
 
 const useAppStore = create((set, get) => ({
   // ────────────────────────────────
@@ -73,7 +74,7 @@ const useAppStore = create((set, get) => ({
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": process.env.EXPO_PUBLIC_API_KEY,
+          "x-api-key": API_KEY,
         },
       });
 
