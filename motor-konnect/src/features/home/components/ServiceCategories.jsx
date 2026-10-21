@@ -26,7 +26,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import useAppStore from "../../../store/useAppStore";
 
-const PRIMARY_BLUE = "#007AFF";
+const PRIMARY_BLUE = "#1E3A5F";
 
 const ICON_MAP = {
   default: "construct-outline",
@@ -81,7 +81,7 @@ export default function ServiceCategories({ categories, loading }) {
         <Text style={styles.name} numberOfLines={1}>
           {item.name}
         </Text>
-        <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+        <Ionicons name="chevron-forward" size={16} color="#C9CED6" />
       </TouchableOpacity>
     );
   };
@@ -98,7 +98,7 @@ export default function ServiceCategories({ categories, loading }) {
 
 const styles = StyleSheet.create({
   center: { padding: 30, alignItems: "center" },
-  loaderText: { color: "#8E8E93", fontSize: 13, fontWeight: "500" },
+  loaderText: { color: "#8A919C", fontSize: 13, fontWeight: "500" },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#E3E6EB",
   },
   iconWrap: {
     width: 36,
@@ -118,5 +118,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  name: { flex: 1, fontSize: 14, fontWeight: "700", color: "#1a1a1a" },
+  name: { flex: 1, fontSize: 14, fontWeight: "700", color: "#1A1D23" },
 });

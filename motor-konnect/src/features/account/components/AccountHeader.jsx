@@ -67,7 +67,9 @@ export default function AccountHeader() {
               {imageUrl ? (
                 <Image source={{ uri: imageUrl }} style={styles.avatarImage} />
               ) : (
-                <Text style={[styles.initials, { color: theme.colors.primary }]}>
+                <Text
+                  style={[styles.initials, { color: theme.colors.primary }]}
+                >
                   {initials}
                 </Text>
               )}
@@ -79,7 +81,7 @@ export default function AccountHeader() {
             <Text
               style={[styles.greeting, { color: theme.colors.textSecondary }]}
             >
-              Welcome back 👋
+              Welcome back
             </Text>
             <Text
               style={[styles.name, { color: theme.colors.text }]}

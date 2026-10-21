@@ -19,7 +19,7 @@ export default function StoreHeader() {
             Welcome to
           </Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Motor Store 🛒
+            Motor Store
           </Text>
         </View>
 

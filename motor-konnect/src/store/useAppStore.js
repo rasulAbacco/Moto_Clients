@@ -9,12 +9,13 @@
 // honest version of it is: fetch garages ONCE (here), cache them, and
 // let any screen resolve a garageId against this cache instead of
 // receiving the full object via route params.
+//
+// TODO once vehicle.service.js is confirmed: wire hydrateVehicleType()
+// to real persistence (marked below).
 
 import { create } from "zustand";
-// 🆕 WIRED UP: this was commented out before, and hydrateVehicleType()
-// was a complete no-op as a result — activeVehicleType never left its
-// hardcoded "SEDAN" default no matter what vehicle was actually selected.
-import { getSelectedVehicle } from "../features/vehicle/vehicle.service";
+// TODO: uncomment once vehicle.service.js is confirmed
+// import { getSelectedVehicle, setSelectedVehicle } from "../features/vehicle/vehicle.service";
 
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
@@ -28,18 +29,16 @@ const useAppStore = create((set, get) => ({
 
   setActiveVehicleType: (type) => {
     set({ activeVehicleType: (type || "SEDAN").toUpperCase() });
+    // TODO: persist via vehicle.service.js once confirmed
   },
 
   hydrateVehicleType: async () => {
     try {
-      // 🆕 FIXED: this was fully commented out before. Now actually reads
-      // whatever vehicle.service.js last persisted (set by HomeHeader
-      // whenever it loads/changes the active vehicle) and applies its
-      // segment as the pricing-tier key everywhere on Home.
-      const vehicle = await getSelectedVehicle();
-      if (vehicle?.model?.segment) {
-        set({ activeVehicleType: vehicle.model.segment.toUpperCase() });
-      }
+      // TODO: replace with real call once vehicle.service.js is available
+      // const vehicle = await getSelectedVehicle();
+      // if (vehicle?.model?.segment) {
+      //   set({ activeVehicleType: vehicle.model.segment.toUpperCase() });
+      // }
     } catch (e) {
       console.log("hydrateVehicleType error:", e?.message);
     }

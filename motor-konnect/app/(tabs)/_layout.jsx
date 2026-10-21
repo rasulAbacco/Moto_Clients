@@ -1,97 +1,79 @@
-// app/(tab)/_layout.jsx
+// app/(tabs)/_layout.jsx
+//
+// Classic docked tab bar. React Navigation sizes it from the safe area, so it
+// sits correctly above the iPhone home indicator and Android's gesture /
+// 3-button navigation bar (Expo 54 is edge-to-edge on Android).
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/hooks/useTheme";
 import { useCart } from "../../src/hooks/useCart";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TABS = [
   { name: "home", title: "Home", icon: "home-outline", iconActive: "home" },
   {
-    name: "help",
-    title: "Support",
-    icon: "help-circle-outline",
-    iconActive: "help-circle",
-  },
-  {
     name: "gostore",
     title: "Store",
-    icon: "cart-outline",
-    iconActive: "cart",
+    icon: "bag-handle-outline",
+    iconActive: "bag-handle",
     hasCart: true,
   },
   {
     name: "sos",
     title: "SOS",
-    icon: "alert-circle-outline",
-    iconActive: "alert-circle",
+    icon: "warning-outline",
+    iconActive: "warning",
     isSOS: true,
   },
   {
+    name: "help",
+    title: "Support",
+    icon: "chatbubble-ellipses-outline",
+    iconActive: "chatbubble-ellipses",
+  },
+  {
     name: "account",
-    title: "Profile",
-    icon: "person-outline",
-    iconActive: "person",
+    title: "Account",
+    icon: "person-circle-outline",
+    iconActive: "person-circle",
   },
 ];
 
-function TabIcon({
-  name,
-  icon,
-  iconActive,
-  focused,
-  color,
-  isSOS,
-  hasCart,
-  cartCount,
-  theme,
-}) {
-  // ── SOS special pill ──────────────────────────────────────────────────────
-  if (isSOS) {
-    return (
-      <View
-        style={[
-          styles.sosBtn,
-          { backgroundColor: focused ? "#ef4444" : "#ef444420" },
-        ]}
-      >
-        <Ionicons
-          name={focused ? iconActive : icon}
-          size={20}
-          color={focused ? "#fff" : "#ef4444"}
-        />
-      </View>
-    );
-  }
-
-  // ── Cart badge ────────────────────────────────────────────────────────────
-  if (hasCart) {
-    return (
-      <View>
-        <Ionicons name={focused ? iconActive : icon} size={22} color={color} />
-        {cartCount > 0 && (
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>
-              {cartCount > 9 ? "9+" : cartCount}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  // ── Default ───────────────────────────────────────────────────────────────
+function TabIcon({ tab, focused, color, cartCount, theme }) {
+  const c = theme.colors;
   return (
     <View style={styles.iconWrap}>
-      {focused && (
+      {/* Thin indicator above the active tab */}
+      <View
+        style={[
+          styles.indicator,
+          {
+            backgroundColor: focused
+              ? tab.isSOS
+                ? c.danger
+                : c.primary
+              : "transparent",
+          },
+        ]}
+      />
+      <Ionicons
+        name={focused ? tab.iconActive : tab.icon}
+        size={22}
+        color={tab.isSOS ? c.danger : color}
+      />
+      {tab.hasCart && cartCount > 0 && (
         <View
           style={[
-            styles.activeBlob,
-            { backgroundColor: theme.colors.primary + "18" },
+            styles.badge,
+            { backgroundColor: c.danger, borderColor: c.surface },
           ]}
-        />
+        >
+          <Text style={styles.badgeText}>
+            {cartCount > 9 ? "9+" : cartCount}
+          </Text>
+        </View>
       )}
-      <Ionicons name={focused ? iconActive : icon} size={22} color={color} />
     </View>
   );
 }
@@ -100,37 +82,28 @@ export default function TabsLayout() {
   const { theme } = useTheme();
   const { getCount } = useCart();
   const cartCount = getCount();
+  const c = theme.colors;
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary || "#9CA3AF",
-        tabBarShowLabel: true,
+        tabBarHideOnKeyboard: true,
+        tabBarActiveTintColor: c.primary,
+        tabBarInactiveTintColor: c.textMuted,
         tabBarStyle: {
-          position: "absolute",
-          bottom: Platform.OS === "ios" ? 24 : 16,
-          left: 16,
-          right: 16,
-          height: Platform.OS === "ios" ? 76 : 68,
-          borderRadius: 26,
-          backgroundColor: theme.colors.card,
-          borderTopWidth: 0,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.14,
-          shadowRadius: 16,
-          elevation: 12,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: "600",
-          marginBottom: Platform.OS === "ios" ? 10 : 8,
-          letterSpacing: 0.2,
-        },
-        tabBarItemStyle: {
-          paddingTop: 8,
+          backgroundColor: c.surface,
+          borderTopColor: c.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          elevation: 0,
+          shadowOpacity: 0,
+          // Breathing room for labels when there is no bottom inset
+          // (Android 3-button navigation, web)
+          ...(Platform.OS !== "ios" && {
+            height: 60 + insets.bottom,
+            paddingBottom: 4 + insets.bottom,
+          }),
         },
       }}
     >
@@ -140,24 +113,31 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
+            tabBarAccessibilityLabel: tab.title,
+            // Per-tab label colour (tint options apply to the whole bar)
+            tabBarLabel: ({ focused, color }) => (
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.label,
+                  {
+                    color: tab.isSOS ? c.danger : color,
+                    fontWeight: focused ? "600" : "500",
+                  },
+                ]}
+              >
+                {tab.title}
+              </Text>
+            ),
             tabBarIcon: ({ color, focused }) => (
               <TabIcon
-                name={tab.name}
-                icon={tab.icon}
-                iconActive={tab.iconActive}
+                tab={tab}
                 focused={focused}
                 color={color}
-                isSOS={tab.isSOS}
-                hasCart={tab.hasCart}
                 cartCount={cartCount}
                 theme={theme}
               />
             ),
-            // SOS label styled red
-            tabBarActiveTintColor: tab.isSOS ? "#ef4444" : theme.colors.primary,
-            tabBarInactiveTintColor: tab.isSOS
-              ? "#ef444480"
-              : theme.colors.textSecondary || "#9CA3AF",
           }}
         />
       ))}
@@ -166,48 +146,37 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  // Default icon wrapper with active blob
   iconWrap: {
     alignItems: "center",
     justifyContent: "center",
-    width: 44,
-    height: 32,
+    width: 48,
+    height: 24,
   },
-  activeBlob: {
+  label: {
+    fontSize: 11,
+  },
+  indicator: {
     position: "absolute",
-    width: 40,
-    height: 28,
-    borderRadius: 10,
+    top: -7,
+    width: 28,
+    height: 3,
+    borderRadius: 2,
   },
-
-  // SOS pill button
-  sosBtn: {
-    width: 42,
-    height: 30,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  // Cart badge
-  cartBadge: {
+  badge: {
     position: "absolute",
-    top: -4,
-    right: -6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#ef4444",
+    top: -2,
+    right: 4,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: "#fff",
   },
-  cartBadgeText: {
-    color: "#fff",
-    fontSize: 8,
-    fontWeight: "800",
-    lineHeight: 11,
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "700",
   },
 });

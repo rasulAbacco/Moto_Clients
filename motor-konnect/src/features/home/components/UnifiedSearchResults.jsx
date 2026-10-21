@@ -21,7 +21,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getServicePrice } from "../../../utils/pricing";
 import useAppStore from "../../../store/useAppStore";
 
-const PRIMARY_BLUE = "#007AFF";
+const PRIMARY_BLUE = "#1E3A5F";
 
 export default function UnifiedSearchResults({ rows, loading, title }) {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function UnifiedSearchResults({ rows, loading, title }) {
               resizeMode="cover"
             />
           ) : (
-            <Ionicons name="construct-outline" size={22} color="#B0B0B8" />
+            <Ionicons name="construct-outline" size={22} color="#8A919C" />
           )}
         </View>
 
@@ -85,14 +85,14 @@ export default function UnifiedSearchResults({ rows, loading, title }) {
             {item.serviceName ?? item.name}
           </Text>
           <View style={styles.garageLine}>
-            <Ionicons name="storefront-outline" size={11} color="#8E8E93" />
+            <Ionicons name="storefront-outline" size={11} color="#8A919C" />
             <Text style={styles.garageName} numberOfLines={1}>
               {item.garageName ?? "Unknown Garage"}
             </Text>
             <Ionicons
               name="star"
               size={11}
-              color="#FFB800"
+              color="#B8862B"
               style={{ marginLeft: 6 }}
             />
             <Text style={styles.rating}>
@@ -107,7 +107,7 @@ export default function UnifiedSearchResults({ rows, loading, title }) {
           </View>
         </View>
 
-        <Ionicons name="chevron-forward" size={14} color="#C7C7CC" />
+        <Ionicons name="chevron-forward" size={14} color="#C9CED6" />
       </TouchableOpacity>
     );
   };
@@ -135,12 +135,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: "#1A1D23",
     marginBottom: 14,
     letterSpacing: -0.5,
   },
   center: { padding: 30, alignItems: "center" },
-  loaderText: { color: "#8E8E93", fontSize: 13, fontWeight: "500" },
+  loaderText: { color: "#8A919C", fontSize: 13, fontWeight: "500" },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -149,21 +149,21 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#E3E6EB",
     gap: 12,
   },
   imageWrap: {
     width: 52,
     height: 52,
     borderRadius: 10,
-    backgroundColor: "#F5F6FA",
+    backgroundColor: "#F6F7F9",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   image: { width: "100%", height: "100%" },
   rowLeft: { flex: 1 },
-  serviceName: { fontSize: 14, fontWeight: "700", color: "#1a1a1a" },
+  serviceName: { fontSize: 14, fontWeight: "700", color: "#1A1D23" },
   garageLine: {
     flexDirection: "row",
     alignItems: "center",
@@ -172,11 +172,11 @@ const styles = StyleSheet.create({
   },
   garageName: {
     fontSize: 11,
-    color: "#8E8E93",
+    color: "#8A919C",
     fontWeight: "500",
     flexShrink: 1,
   },
-  rating: { fontSize: 11, color: "#1a1a1a", fontWeight: "600" },
+  rating: { fontSize: 11, color: "#1A1D23", fontWeight: "600" },
   priceRow: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   price: { fontSize: 15, fontWeight: "800", color: PRIMARY_BLUE },
   originalPrice: {
     fontSize: 12,
-    color: "#B0B0B8",
+    color: "#8A919C",
     textDecorationLine: "line-through",
   },
 });

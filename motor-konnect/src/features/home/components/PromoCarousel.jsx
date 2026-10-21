@@ -62,7 +62,7 @@ export default function PremiumPromoCarousel({ banners = [] }) {
         renderItem={({ item }) => (
           <View style={styles.cardWrapper}>
             <LinearGradient
-              colors={["#1e1b4b", "#312e81", "#4338ca"]}
+              colors={["#14243B", "#1E3A5F", "#1E3A5F"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.card}
@@ -86,7 +86,7 @@ export default function PremiumPromoCarousel({ banners = [] }) {
                     <Ionicons
                       name="checkmark-circle"
                       size={14}
-                      color="#4ade80"
+                      color="#6DB892"
                     />
                     <Text style={styles.serviceText} numberOfLines={1}>
                       {s?.serviceName}
@@ -142,7 +142,7 @@ export default function PremiumPromoCarousel({ banners = [] }) {
               {
                 width: activeIndex === i ? 20 : 6,
                 opacity: activeIndex === i ? 1 : 0.3,
-                backgroundColor: "#4338ca",
+                backgroundColor: "#1E3A5F",
               },
             ]}
           />
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   priceBadge: {
-    backgroundColor: "rgba(79, 70, 229, 0.6)",
+    backgroundColor: "rgba(30,58,95, 0.6)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   servicesBox: { marginTop: 8, gap: 5 },
   serviceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  serviceText: { color: "#e2e8f0", fontSize: 12, fontWeight: "600" },
+  serviceText: { color: "#E3E6EB", fontSize: 12, fontWeight: "600" },
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",

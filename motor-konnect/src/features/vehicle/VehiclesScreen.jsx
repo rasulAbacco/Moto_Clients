@@ -17,21 +17,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { useTheme } from "../../hooks/useTheme";
 import api from "../../services/apiClient.js";
+import { safeBack } from "../../utils/navigation";
+import ScreenHeader from "../../components/common/ScreenHeader";
 
 // Segment badge color map
 const SEGMENT_COLOR = {
-  HATCHBACK: { bg: "#e0f2fe", text: "#0369a1" },
-  SEDAN: { bg: "#f0fdf4", text: "#15803d" },
-  SUV: { bg: "#fef9c3", text: "#a16207" },
-  LUXURY: { bg: "#f3e8ff", text: "#7e22ce" },
-  SUPER_LUXURY: { bg: "#fce7f3", text: "#be185d" },
-  PICKUP: { bg: "#ffedd5", text: "#c2410c" },
-  VAN: { bg: "#f1f5f9", text: "#475569" },
+  HATCHBACK: { bg: "#E6ECF3", text: "#1E3A5F" },
+  SEDAN: { bg: "#E7F2EC", text: "#2E7D5B" },
+  SUV: { bg: "#F7F0E1", text: "#B8862B" },
+  LUXURY: { bg: "#E6ECF3", text: "#1E3A5F" },
+  SUPER_LUXURY: { bg: "#E6ECF3", text: "#1E3A5F" },
+  PICKUP: { bg: "#E6ECF3", text: "#1E3A5F" },
+  VAN: { bg: "#EEF0F3", text: "#374151" },
 };
 
 const SegmentBadge = ({ segment }) => {
   if (!segment) return null;
-  const colors = SEGMENT_COLOR[segment] || { bg: "#f1f5f9", text: "#475569" };
+  const colors = SEGMENT_COLOR[segment] || { bg: "#EEF0F3", text: "#374151" };
   const label = segment.replace("_", " ");
   return (
     <View style={[styles.segmentBadge, { backgroundColor: colors.bg }]}>
@@ -128,36 +130,23 @@ export default function VehiclesScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={theme.colors.primary}
-          />
-          {Platform.OS === "ios" && (
-            <Text style={[styles.backLabel, { color: theme.colors.primary }]}>
-              Back
-            </Text>
-          )}
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          My Vehicles
-        </Text>
-        <TouchableOpacity
-          onPress={() => router.push("/vehicle/type")}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="add" size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="My Vehicles"
+        onBack={() => safeBack(router)}
+        right={
+          <>
+            <TouchableOpacity
+              onPress={() => router.push("/vehicle/type")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="add" size={24} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </>
+        }
+      />
 
       {loading ? (
         <View style={styles.centered}>
@@ -401,7 +390,7 @@ export default function VehiclesScreen() {
                   onPress={() => confirmDelete(vehicle)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                  <Ionicons name="trash-outline" size={15} color="#B3261E" />
                   <Text style={styles.deleteBtnText}>Remove</Text>
                 </TouchableOpacity>
               </View>
@@ -431,7 +420,7 @@ export default function VehiclesScreen() {
             ]}
           >
             <View style={styles.modalIconWrap}>
-              <Ionicons name="trash-outline" size={28} color="#ef4444" />
+              <Ionicons name="trash-outline" size={28} color="#B3261E" />
             </View>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Remove Vehicle?
@@ -637,7 +626,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 20,
   },
-  deleteBtnText: { fontSize: 13, fontWeight: "600", color: "#ef4444" },
+  deleteBtnText: { fontSize: 13, fontWeight: "600", color: "#B3261E" },
 
   // Modal
   modalOverlay: {
@@ -658,7 +647,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 18,
-    backgroundColor: "#ef444415",
+    backgroundColor: "#B3261E15",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
@@ -684,7 +673,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: "#ef4444",
+    backgroundColor: "#B3261E",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",

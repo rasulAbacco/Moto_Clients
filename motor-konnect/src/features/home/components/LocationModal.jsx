@@ -139,7 +139,7 @@ export default function LocationModal({
               <View
                 style={[
                   styles.cityIcon,
-                  { backgroundColor: theme.colors.card || "#f5f5f5" },
+                  { backgroundColor: theme.colors.card || "#F6F7F9" },
                 ]}
               >
                 <Ionicons

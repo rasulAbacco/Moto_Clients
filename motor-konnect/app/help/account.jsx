@@ -11,6 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../src/hooks/useTheme";
+import { safeBack } from "../../src/utils/navigation";
+import ScreenHeader from "../../src/components/common/ScreenHeader";
 
 const DATA = [
   {
@@ -56,20 +58,14 @@ export default function AccountHelp() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={theme.colors.primary}
-          />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Account & Login
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <SafeAreaView
+      edges={["left", "right", "bottom"]}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+    >
+      <ScreenHeader
+        title="Account & Login"
+        onBack={() => safeBack(router, "/(tabs)/help")}
+      />
 
       <ScrollView contentContainerStyle={styles.container}>
         {DATA.map((item, i) => (

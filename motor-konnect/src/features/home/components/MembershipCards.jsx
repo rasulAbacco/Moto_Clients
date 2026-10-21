@@ -94,11 +94,11 @@ export default function PopularServicesCards() {
             <Ionicons
               name={getServiceIcon(item.name)}
               size={24}
-              color="#1a1a1a"
+              color="#1A1D23"
             />
           </View>
           <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color="#007AFF" />
+            <Ionicons name="checkmark-circle" size={14} color="#1E3A5F" />
             <Text style={styles.verifiedText}>Verified</Text>
           </View>
         </View>
@@ -113,10 +113,10 @@ export default function PopularServicesCards() {
 
         <View style={styles.footer}>
           <View style={styles.ratingBox}>
-            <Ionicons name="star" size={14} color="#FF9500" />
+            <Ionicons name="star" size={14} color="#1E3A5F" />
             <Text style={styles.ratingText}>4.9 (120+)</Text>
           </View>
-          {/* <Ionicons name="arrow-forward-circle" size={32} color="#1a1a1a" /> */}
+          {/* <Ionicons name="arrow-forward-circle" size={32} color="#1A1D23" /> */}
         </View>
       </View>
     </View>
@@ -124,7 +124,7 @@ export default function PopularServicesCards() {
 
   return (
     <View style={styles.container}>
-      <SectionHeader title="Popular Services"/>
+      <SectionHeader title="Popular Services" />
 
       {carouselData.length === 0 ? (
         <View style={styles.loader}>
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     padding: 20,
     height: 185,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#E3E6EB",
     justifyContent: "space-between",
     ...Platform.select({
       ios: {
@@ -201,16 +201,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#F6F7F9",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#EEE",
+    borderColor: "#E3E6EB",
   },
   verifiedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0F7FF",
+    backgroundColor: "#E6ECF3",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -219,19 +219,19 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#007AFF",
+    color: "#1E3A5F",
     textTransform: "uppercase",
   },
   content: { marginTop: 10 },
   categoryText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#8E8E93",
+    color: "#8A919C",
     letterSpacing: 1,
     marginBottom: 2,
   },
   title: {
-    color: "#1a1a1a",
+    color: "#1A1D23",
     fontSize: 19,
     fontWeight: "700",
     letterSpacing: -0.5,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#1a1a1a",
+    color: "#1A1D23",
   },
   loader: {
     height: 180,
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyText: {
-    color: "#999",
+    color: "#8A919C",
     fontSize: 14,
   },
 });

@@ -1,14 +1,25 @@
 {
+  "cli": {
+    "appVersionSource": "local"
+  },
   "build": {
     "preview": {
       "android": {
         "buildType": "apk"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_MAIN_API_URL": "https://moto-clients.onrender.com/api",
+        "EXPO_PUBLIC_API_URL": "https://moto-clients.onrender.com/api/v1"
+      }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_MAIN_API_URL": "https://moto-clients.onrender.com/api",
+        "EXPO_PUBLIC_API_URL": "https://moto-clients.onrender.com/api/v1"
       }
     }
   }

@@ -16,19 +16,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState, useMemo, useEffect } from "react";
 import { useTheme } from "../../../src/hooks/useTheme.js";
 import api from "../../services/apiClient.js";
+import { safeBack } from "../../utils/navigation";
+import ScreenHeader from "../../components/common/ScreenHeader";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48) / 3;
 
 const ACCENT_COLORS = [
-  "#1a1a2e",
-  "#16213e",
-  "#0f3460",
-  "#533483",
-  "#2d6a4f",
-  "#1b4332",
-  "#6d4c41",
-  "#37474f",
+  "#1E3A5F",
+  "#1E3A5F",
+  "#1E3A5F",
+  "#1E3A5F",
+  "#3A5A80",
+  "#3A5A80",
+  "#3A5A80",
+  "#3A5A80",
 ];
 
 export default function VehicleBrandScreen() {
@@ -69,11 +71,11 @@ export default function VehicleBrandScreen() {
 
   const isDark = theme.dark;
   const surface = isDark ? "#1c1c1e" : "#ffffff";
-  const cardBg = isDark ? "#2c2c2e" : "#f8f8f8";
-  const textPrimary = isDark ? "#f5f5f5" : "#111111";
-  const textSecondary = isDark ? "#8e8e93" : "#6b6b6b";
-  const border = isDark ? "#3a3a3c" : "#e8e8e8";
-  const accent = "#0044ff";
+  const cardBg = isDark ? "#2c2c2e" : "#F6F7F9";
+  const textPrimary = isDark ? "#F6F7F9" : "#1A1D23";
+  const textSecondary = isDark ? "#8A919C" : "#6B7280";
+  const border = isDark ? "#3a3a3c" : "#E3E6EB";
+  const accent = "#1E3A5F";
 
   const renderItem = ({ item, index }) => {
     const color = ACCENT_COLORS[index % ACCENT_COLORS.length];
@@ -91,13 +93,13 @@ export default function VehicleBrandScreen() {
           router.push({
             pathname: "/vehicle/model",
             params: {
-            type,
-            brandId: item.id,
-            brandData: JSON.stringify({
-              name: item.name,
-              logoUrl: item.logoUrl,
-            }),
-          },
+              type,
+              brandId: item.id,
+              brandData: JSON.stringify({
+                name: item.name,
+                logoUrl: item.logoUrl,
+              }),
+            },
           })
         }
         activeOpacity={0.7}
@@ -122,6 +124,7 @@ export default function VehicleBrandScreen() {
   if (loading) {
     return (
       <SafeAreaView
+        edges={["left", "right", "bottom"]}
         style={{
           flex: 1,
           justifyContent: "center",
@@ -137,22 +140,13 @@ export default function VehicleBrandScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={accent}
-          />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textPrimary }]}>
-          Select Brand
-        </Text>
-        <View style={styles.headerRight} />
-      </View>
+      <ScreenHeader
+        title="Select Brand"
+        onBack={() => safeBack(router, "/vehicle/type")}
+      />
 
       {/* Hero */}
       <View style={styles.heroWrap}>

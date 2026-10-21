@@ -18,13 +18,11 @@ import { useCart } from "../src/hooks/useCart";
 import { useAuth } from "../src/providers/AuthProvider";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  connectSocket,
-  subscribeToBookingUpdates,
-} from "../src/services/socket.service";
+import { safeBack } from "../src/utils/navigation";
+import ScreenHeader from "../src/components/common/ScreenHeader";
 
 const BASE_URL =
- process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
 const WAIT_SECONDS = 35;
 const POLL_INTERVAL_MS = 5000;
 
@@ -41,20 +39,9 @@ export default function ServiceConfirmScreen() {
   const countdownRef = useRef(null);
   const pollRef = useRef(null);
   const bookedAtRef = useRef(null);
-  const bookingIdRef = useRef(null);
 
   const { garageId, name, garage } = useLocalSearchParams();
   const garageData = garage ? JSON.parse(garage) : null;
-
-  // 🆕 Selected vehicle for this booking. Same shape confirmed in
-  // profile.jsx's `primaryVehicle = user?.vehicles?.[0]`:
-  //   { id, registration, vehicleType: { name }, brand: { name },
-  //     model: { name }, modelYear: { year }, fuel? }
-  // If the booking flow has its own vehicle-picker state somewhere
-  // upstream (e.g. attached to the cart item), that takes priority;
-  // otherwise we fall back to the user's primary registered vehicle.
-  const selectedVehicle =
-    cartItems?.[0]?.selectedVehicle || user?.vehicles?.[0] || null;
 
   const total = cartItems.reduce(
     (sum, item) => sum + item.price * (item.quantity || 1),
@@ -126,41 +113,6 @@ export default function ServiceConfirmScreen() {
     };
   }, [bookingState]);
 
-  // 🆕 Fast path: listen for the real-time socket push from Motor Desk.
-  // This usually resolves the screen instantly instead of waiting on the
-  // next 5-second poll tick. The poll above stays as a fallback in case
-  // the socket connection drops or the event is missed.
-  useEffect(() => {
-    if (bookingState !== "waiting") return;
-    if (!user?.phone) return;
-
-    connectSocket(user.phone);
-
-    const unsubscribe = subscribeToBookingUpdates((payload) => {
-      if (
-        !bookingIdRef.current ||
-        String(payload.id) !== String(bookingIdRef.current)
-      ) {
-        return; // not this booking
-      }
-      if (payload.status !== "ACCEPTED" && payload.status !== "REJECTED") {
-        return;
-      }
-
-      clearInterval(countdownRef.current);
-      clearInterval(pollRef.current);
-      setBookingNotification({
-        body:
-          payload.status === "ACCEPTED"
-            ? `Your booking for ${payload.serviceName || "the service"} has been accepted!`
-            : `Your booking for ${payload.serviceName || "the service"} could not be confirmed.`,
-      });
-      setBookingState(payload.status === "ACCEPTED" ? "accepted" : "rejected");
-    });
-
-    return unsubscribe;
-  }, [bookingState, user?.phone]);
-
   useEffect(() => {
     if (bookingState === "waiting" && countdown === 0) {
       clearInterval(pollRef.current);
@@ -230,24 +182,10 @@ export default function ServiceConfirmScreen() {
           packageId: primaryItem.id,
           packageName: primaryItem.title,
         }),
-
-        // 🆕 Real vehicle details for this booking, pulled from the
-        // customer's registered vehicle (same data shown on Profile /
-        // Registered Vehicles). Sent as plain strings/numbers since the
-        // CRM stores a snapshot, not a live reference.
-        ...(selectedVehicle && {
-          vehicleMake: selectedVehicle.brand?.name || null,
-          vehicleModel: selectedVehicle.model?.name || null,
-          vehicleRegNumber: selectedVehicle.registration || null,
-          vehicleYear: selectedVehicle.modelYear?.year || null,
-          vehicleFuelType:
-            selectedVehicle.fuel || selectedVehicle.fuelType || null,
-        }),
       };
 
       console.log("📤 Sending payload:", JSON.stringify(payload, null, 2));
-      const bookRes = await axios.post(`${BASE_URL}/marketplace/book`, payload);
-      bookingIdRef.current = bookRes?.data?.data?.id || null;
+      await axios.post(`${BASE_URL}/marketplace/book`, payload);
 
       clearCart();
       setBookingState("waiting");
@@ -261,14 +199,14 @@ export default function ServiceConfirmScreen() {
   };
 
   const goHome = () => router.replace("/(tabs)/home");
-  const goBack = () => router.back();
+  const goBack = () => safeBack(router);
 
   // ── Result screens ──
   if (["accepted", "rejected", "timeout"].includes(bookingState)) {
     const isAccepted = bookingState === "accepted";
     const isRejected = bookingState === "rejected";
     const iconChar = isAccepted ? "✓" : isRejected ? "✕" : "⏱";
-    const color = isAccepted ? "#16a34a" : isRejected ? "#ef4444" : "#f97316";
+    const color = isAccepted ? "#2E7D5B" : isRejected ? "#B3261E" : "#1E3A5F";
 
     return (
       <SafeAreaView style={styles.waitingContainer}>
@@ -314,7 +252,7 @@ export default function ServiceConfirmScreen() {
         <Text style={styles.waitingTitle}>Booking Sent!</Text>
         <ActivityIndicator
           size="large"
-          color="#0062ff"
+          color="#1E3A5F"
           style={{ marginVertical: 20 }}
         />
         <Text style={styles.waitingBody}>Waiting for garage response...</Text>
@@ -324,19 +262,14 @@ export default function ServiceConfirmScreen() {
 
   // ── Confirm screen ──
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Confirm Booking</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <ScreenHeader title="Confirm Booking" onBack={() => safeBack(router)} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Garage Details */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="business" size={18} color="#0062ff" />
+            <Ionicons name="business" size={18} color="#1E3A5F" />
             <Text style={styles.sectionTitle}>Garage Details</Text>
           </View>
           <View style={styles.infoRow}>
@@ -368,43 +301,6 @@ export default function ServiceConfirmScreen() {
           </View>
         </View>
 
-        {/* 🆕 Vehicle Details */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="car-sport" size={18} color="#0062ff" />
-            <Text style={styles.sectionTitle}>Vehicle Details</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Vehicle</Text>
-            <Text style={styles.value}>
-              {selectedVehicle
-                ? `${selectedVehicle.brand?.name || ""} ${selectedVehicle.model?.name || ""}`.trim() ||
-                  "Not Available"
-                : "Not Available"}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Registration No.</Text>
-            <Text style={styles.value}>
-              {selectedVehicle?.registration || "Not Available"}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Year</Text>
-            <Text style={styles.value}>
-              {selectedVehicle?.modelYear?.year || "Not Available"}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Fuel Type</Text>
-            <Text style={styles.value}>
-              {selectedVehicle?.fuel ||
-                selectedVehicle?.fuelType ||
-                "Not Available"}
-            </Text>
-          </View>
-        </View>
-
         {/* Services — expanded view for packages */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Services</Text>
@@ -426,7 +322,7 @@ export default function ServiceConfirmScreen() {
                       <Ionicons
                         name="checkmark-circle"
                         size={13}
-                        color="#4ade80"
+                        color="#6DB892"
                       />
                       <Text style={styles.packageServiceText}>
                         {s.serviceName || s.name}
@@ -446,7 +342,7 @@ export default function ServiceConfirmScreen() {
 
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            💡 No online payment required. Pay at the garage.
+            No online payment required. Pay at the garage.
           </Text>
         </View>
       </ScrollView>
@@ -467,14 +363,14 @@ export default function ServiceConfirmScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1, backgroundColor: "#F6F7F9" },
   header: {
     padding: 16,
     backgroundColor: "#fff",
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#E3E6EB",
   },
   backBtn: { marginRight: 12 },
   title: { fontSize: 18, fontWeight: "700" },
@@ -492,16 +388,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 8,
   },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#333" },
+  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#374151" },
   infoRow: { marginBottom: 10 },
-  label: { fontSize: 12, color: "#777", marginBottom: 2 },
-  value: { fontSize: 14, fontWeight: "600", color: "#111" },
+  label: { fontSize: 12, color: "#6B7280", marginBottom: 2 },
+  value: { fontSize: 14, fontWeight: "600", color: "#1A1D23" },
   itemRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 4,
   },
-  itemName: { fontSize: 14, color: "#444" },
+  itemName: { fontSize: 14, color: "#374151" },
   itemPrice: { fontSize: 14, fontWeight: "700" },
   // ✅ Package included services styles
   packageServices: {
@@ -510,7 +406,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingLeft: 8,
     borderLeftWidth: 2,
-    borderLeftColor: "#e0e7ff",
+    borderLeftColor: "#E6ECF3",
   },
   packageServiceRow: {
     flexDirection: "row",
@@ -518,18 +414,18 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 4,
   },
-  packageServiceText: { fontSize: 12, color: "#666" },
-  total: { fontSize: 22, fontWeight: "800", color: "#0062ff" },
+  packageServiceText: { fontSize: 12, color: "#6B7280" },
+  total: { fontSize: 22, fontWeight: "800", color: "#1E3A5F" },
   infoBox: {
     margin: 16,
     padding: 12,
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#E6ECF3",
     borderRadius: 10,
   },
-  infoText: { fontSize: 13, color: "#4338ca", fontWeight: "500" },
+  infoText: { fontSize: 13, color: "#1E3A5F", fontWeight: "500" },
   btn: {
     margin: 16,
-    backgroundColor: "#0062ff",
+    backgroundColor: "#1E3A5F",
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -555,25 +451,25 @@ const styles = StyleSheet.create({
   waitingTitle: { fontSize: 22, fontWeight: "800", marginBottom: 10 },
   waitingBody: {
     fontSize: 14,
-    color: "#666",
+    color: "#6B7280",
     textAlign: "center",
     lineHeight: 22,
   },
   resultButtonRow: { flexDirection: "row", gap: 12, marginTop: 30 },
   resultBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
-  outlineBtn: { borderWidth: 1, borderColor: "#0062ff" },
-  outlineBtnText: { color: "#0062ff", fontWeight: "700" },
-  homeBtn: { backgroundColor: "#0062ff" },
+  outlineBtn: { borderWidth: 1, borderColor: "#1E3A5F" },
+  outlineBtnText: { color: "#1E3A5F", fontWeight: "700" },
+  homeBtn: { backgroundColor: "#1E3A5F" },
   homeBtnText: { color: "#fff", fontWeight: "700" },
   countdownWrapper: {
     width: 70,
     height: 70,
     borderRadius: 35,
     borderWidth: 3,
-    borderColor: "#0062ff",
+    borderColor: "#1E3A5F",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
   },
-  countdownNumber: { fontSize: 24, fontWeight: "800", color: "#0062ff" },
+  countdownNumber: { fontSize: 24, fontWeight: "800", color: "#1E3A5F" },
 });

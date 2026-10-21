@@ -14,7 +14,7 @@ export default function MembershipStrip() {
 
   return (
     <LinearGradient
-      colors={["#ef4444", "#7c3aed"]}
+      colors={["#B3261E", "#1E3A5F"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -25,7 +25,7 @@ export default function MembershipStrip() {
       {/* Header row */}
       <View style={styles.headerRow}>
         <View style={styles.badgeWrap}>
-          <Ionicons name="star" size={12} color="#f59e0b" />
+          <Ionicons name="star" size={12} color="#B8862B" />
           <Text style={styles.badgeText}>MILES MEMBERSHIP</Text>
         </View>
         <TouchableOpacity
@@ -34,7 +34,7 @@ export default function MembershipStrip() {
           activeOpacity={0.85}
         >
           <Text style={styles.ctaText}>Get Plan</Text>
-          <Ionicons name="arrow-forward" size={12} color="#7c3aed" />
+          <Ionicons name="arrow-forward" size={12} color="#1E3A5F" />
         </TouchableOpacity>
       </View>
 
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 24,
     overflow: "hidden",
-    shadowColor: "#ef4444",
+    shadowColor: "#B3261E",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   ctaText: {
-    color: "#7c3aed",
+    color: "#1E3A5F",
     fontWeight: "700",
     fontSize: 12,
   },

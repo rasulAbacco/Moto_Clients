@@ -47,7 +47,7 @@ export default function AssistBanner() {
 
   return (
     <LinearGradient
-      colors={["#0f172a", "#1e293b"]}
+      colors={["#14243B", "#1E3A5F"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -70,7 +70,7 @@ export default function AssistBanner() {
           onPress={handleCall}
           activeOpacity={0.85}
         >
-          <Ionicons name="call" size={16} color="#0f172a" />
+          <Ionicons name="call" size={16} color="#14243B" />
           <Text style={styles.callText}>Call Now</Text>
         </TouchableOpacity>
       </View>
@@ -82,7 +82,7 @@ export default function AssistBanner() {
       <View style={styles.features}>
         {FEATURES.map((f) => (
           <View key={f.label} style={styles.feature}>
-            <Ionicons name={f.icon} size={14} color="#94a3b8" />
+            <Ionicons name={f.icon} size={14} color="#8A919C" />
             <Text style={styles.featureLabel}>{f.label}</Text>
           </View>
         ))}
@@ -95,7 +95,7 @@ export default function AssistBanner() {
         activeOpacity={0.8}
       >
         <Text style={styles.learnMoreText}>View All Emergency Services</Text>
-        <Ionicons name="arrow-forward" size={13} color="#60a5fa" />
+        <Ionicons name="arrow-forward" size={13} color="#A9BCD3" />
       </TouchableOpacity>
 
       {/* ✅ FIXED DECOR (NO TOUCH BLOCK) */}
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sosBadge: {
-    backgroundColor: "#ef4444",
+    backgroundColor: "#B3261E",
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 5,
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   subtitle: {
-    color: "#94a3b8",
+    color: "#8A919C",
     fontSize: 13,
   },
 
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#4ade80",
+    backgroundColor: "#6DB892",
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 12,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   },
 
   callText: {
-    color: "#0f172a",
+    color: "#14243B",
     fontWeight: "700",
     fontSize: 13,
   },
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
 
   featureLabel: {
-    color: "#cbd5e1",
+    color: "#C9CED6",
     fontSize: 11,
     fontWeight: "500",
     flex: 1,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
 
   learnMoreText: {
-    color: "#60a5fa",
+    color: "#A9BCD3",
     fontSize: 13,
     fontWeight: "600",
   },

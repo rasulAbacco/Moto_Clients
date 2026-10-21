@@ -58,7 +58,7 @@ export default function AccountFooter() {
         <Text
           style={[
             styles.logoutText,
-            { color: theme.colors.error || "#ef4444" },
+            { color: theme.colors.error || "#B3261E" },
           ]}
         >
           Log Out

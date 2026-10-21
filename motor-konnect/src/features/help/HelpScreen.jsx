@@ -15,6 +15,8 @@ import HelpSearchBar from "./components/HelpSearchBar";
 import HelpCategoryGrid from "./components/HelpCategoryGrid";
 import FAQAccordion from "./components/FAQAccordion";
 import ContactSupportCard from "./components/ContactSupportCard";
+import { safeBack } from "../../utils/navigation";
+import ScreenHeader from "../../components/common/ScreenHeader";
 
 export default function HelpScreen() {
   const { theme } = useTheme();
@@ -23,31 +25,10 @@ export default function HelpScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={theme.colors.primary}
-          />
-          {Platform.OS === "ios" && (
-            <Text style={[styles.backLabel, { color: theme.colors.primary }]}>
-              Back
-            </Text>
-          )}
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Help & Support
-        </Text>
-        <View style={styles.headerRight} />
-      </View>
+      <ScreenHeader title="Help & Support" showBack={false} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -56,7 +37,7 @@ export default function HelpScreen() {
         {/* Hero */}
         <View style={styles.heroWrap}>
           <Text style={[styles.heroTitle, { color: theme.colors.text }]}>
-            How can we{"\n"}help you? 👋
+            How can we{"\n"}help you?
           </Text>
           <Text
             style={[styles.heroSubtitle, { color: theme.colors.textSecondary }]}

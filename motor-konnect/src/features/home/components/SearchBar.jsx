@@ -15,7 +15,7 @@ export default function SearchBar() {
         styles.container,
         {
           backgroundColor: theme.colors.card || theme.colors.surface,
-          borderColor: theme.colors.border || "#E5E7EB",
+          borderColor: theme.colors.border || "#E3E6EB",
         },
       ]}
     >

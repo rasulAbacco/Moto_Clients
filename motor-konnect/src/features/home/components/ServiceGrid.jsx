@@ -9,6 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme.js";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { safeBack } from "../../../utils/navigation";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 32 - 12) / 2;
@@ -46,7 +47,7 @@ export default function ServiceGrid() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => safeBack(router)}>
           <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
         </TouchableOpacity>
 

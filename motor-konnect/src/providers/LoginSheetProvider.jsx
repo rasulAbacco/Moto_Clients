@@ -100,7 +100,7 @@ function Field({
           fieldStyles.inputRow,
           {
             backgroundColor:
-              theme.colors.card || theme.colors.surface || "#f9f9f9",
+              theme.colors.card || theme.colors.surface || "#F6F7F9",
             borderColor: theme.colors.border,
           },
         ]}

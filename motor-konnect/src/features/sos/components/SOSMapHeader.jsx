@@ -1,11 +1,25 @@
 //client\src\features\sos\components\SOSMapHeader.jsx
 //
-// ✅ CHANGED: react-native-maps removed entirely. On Android, RNMaps has
-// no non-Google renderer — even provider={null} + UrlTile still boots
-// the Google Maps Android SDK under the hood to host the native view,
-// which crashes without an API key. Replaced with a WebView rendering
-// Leaflet.js + OpenStreetMap tiles — pure HTML/JS, no native map SDK,
-// no API key, no billing account, works the same on iOS and Android.
+// ✅ CHANGED: switched from Google Maps tiles to OpenStreetMap tiles via
+// <UrlTile>. This removes the dependency on a Google Maps SDK API key
+// entirely — the previous crash on the built APK was because
+// app.json had no android.config.googleMaps.apiKey, so MapView threw a
+// native (non-JS-catchable) exception the instant it mounted. With
+// UrlTile + provider={null}, no Google key/config is required at all.
+//
+// ✅ FIX (SOS crash "Cannot convert undefined value to object" at <UrlTile>):
+// MapView was given provider={null}. react-native-maps passes the provider
+// down to its child layers (UrlTile, Circle, Marker) via context, and only
+// `undefined` (PROVIDER_DEFAULT) means "default map". With `null` it looked
+// up providers[null] -> undefined and crashed when the first child rendered.
+// Now uses PROVIDER_DEFAULT (Apple Maps on iOS, the platform default on
+// Android) and the map is wrapped in an error boundary so a map failure
+// shows a fallback card instead of taking down the whole SOS screen.
+//
+// ✅ Also added a `!location` guard alongside `denied` before rendering
+// MapView — previously there was a brief window where `loading` was
+// false and `denied` was false but `location` hadn't been set yet,
+// which would have thrown on `location.latitude` being null.
 
 import {
   View,
@@ -16,11 +30,33 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import { WebView } from "react-native-webview";
+import MapView, {
+  UrlTile,
+  Marker,
+  Circle,
+  PROVIDER_DEFAULT,
+} from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
-import { useEffect, useState, useRef } from "react";
+import { Component, useEffect, useState, useRef } from "react";
+
+// Catches native/render errors from the map so SOS stays usable.
+class MapErrorBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    console.warn("SOS map failed to render:", error?.message);
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
 
 export default function SOSMapHeader() {
   const { theme } = useTheme();
@@ -90,53 +126,8 @@ export default function SOSMapHeader() {
     }
   };
 
-  // ✅ Builds a self-contained Leaflet + OSM HTML page. No external
-  // config, no API key — tiles load from the public OSM tile server.
-  const buildMapHtml = (lat, lng) => `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <style>
-          html, body, #map { height: 100%; margin: 0; padding: 0; }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <script>
-          const map = L.map('map', {
-            zoomControl: false,
-            attributionControl: false,
-          }).setView([${lat}, ${lng}], 16);
-
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-          }).addTo(map);
-
-          L.circle([${lat}, ${lng}], {
-            radius: 120,
-            fillColor: '#ef4444',
-            fillOpacity: 0.12,
-            color: '#ef4444',
-            opacity: 0.4,
-            weight: 1,
-          }).addTo(map);
-
-          const pulseIcon = L.divIcon({
-            className: '',
-            html: '<div style="width:22px;height:22px;border-radius:11px;background:rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;"><div style="width:11px;height:11px;border-radius:6px;background:#ef4444;border:2px solid #fff;"></div></div>',
-            iconSize: [22, 22],
-            iconAnchor: [11, 11],
-          });
-
-          L.marker([${lat}, ${lng}], { icon: pulseIcon }).addTo(map);
-        </script>
-      </body>
-    </html>
-  `;
-
+  // ✅ Covers: still loading, permission denied, OR location not yet set
+  // (guards against a null-location render race before MapView mounts).
   const showPlaceholder = loading || denied || !location;
 
   return (
@@ -229,6 +220,9 @@ export default function SOSMapHeader() {
             </TouchableOpacity>
           </View>
         ) : !location ? (
+          // ✅ NEW: location still null even though loading/denied are both
+          // false (race window) — show the same loading placeholder
+          // instead of letting MapView read location.latitude on null.
           <View
             style={[
               styles.mapPlaceholder,
@@ -246,18 +240,85 @@ export default function SOSMapHeader() {
             </Text>
           </View>
         ) : (
-          <WebView
-            style={StyleSheet.absoluteFillObject}
-            originWhitelist={["*"]}
-            source={{
-              html: buildMapHtml(location.latitude, location.longitude),
-            }}
-            javaScriptEnabled
-            domStorageEnabled
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-          />
+          <MapErrorBoundary
+            fallback={
+              <View
+                style={[
+                  styles.mapPlaceholder,
+                  { backgroundColor: theme.colors.card },
+                ]}
+              >
+                <Ionicons
+                  name="map-outline"
+                  size={36}
+                  color={theme.colors.textSecondary}
+                />
+                <Text
+                  style={[styles.deniedTitle, { color: theme.colors.text }]}
+                >
+                  Map unavailable
+                </Text>
+                <Text
+                  style={[
+                    styles.deniedSub,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  {address
+                    ? "Your location is shown above"
+                    : "Emergency services below still work"}
+                </Text>
+              </View>
+            }
+          >
+            <MapView
+              style={StyleSheet.absoluteFillObject}
+              // Must be PROVIDER_DEFAULT (undefined), never null — see note at top.
+              provider={PROVIDER_DEFAULT}
+              initialRegion={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+                latitudeDelta: 0.012,
+                longitudeDelta: 0.012,
+              }}
+              showsUserLocation={false}
+              showsCompass={false}
+              showsMyLocationButton={false}
+            >
+              {/* ✅ OpenStreetMap tile layer — free, no API key required.
+                For higher production traffic, consider a paid OSM tile
+                provider (MapTiler / Stadia Maps / Thunderforest) instead
+                of hitting the public tile.openstreetmap.org server hard. */}
+              <UrlTile
+                urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maximumZ={19}
+                flipY={false}
+              />
+
+              {/* Accuracy circle */}
+              <Circle
+                center={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                radius={120}
+                fillColor="rgba(179,38,30,0.12)"
+                strokeColor="rgba(179,38,30,0.4)"
+                strokeWidth={1}
+              />
+              <Marker
+                coordinate={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={styles.markerOuter}>
+                  <View style={styles.markerInner} />
+                </View>
+              </Marker>
+            </MapView>
+          </MapErrorBoundary>
         )}
       </View>
 
@@ -305,7 +366,7 @@ const styles = StyleSheet.create({
     height: 230,
     borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "#E3E6EB",
     marginBottom: 18,
   },
   mapPlaceholder: {
@@ -326,6 +387,24 @@ const styles = StyleSheet.create({
   },
   retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
+  // Custom marker
+  markerOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(179,38,30,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  markerInner: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: "#B3261E",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+
   // Title row
   titleRow: {
     flexDirection: "row",
@@ -339,13 +418,13 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "rgba(239,68,68,0.25)",
+    backgroundColor: "rgba(179,38,30,0.25)",
   },
   sosDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#ef4444",
+    backgroundColor: "#B3261E",
     marginLeft: 2,
   },
   title: {

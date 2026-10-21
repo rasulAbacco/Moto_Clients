@@ -14,6 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import { useState } from "react";
 import { useRouter } from "expo-router"; // ✅ added
+import { safeBack } from "../../../utils/navigation";
+import ScreenHeader from "../../../components/common/ScreenHeader";
 
 export default function SupportScreen() {
   const { theme } = useTheme();
@@ -32,7 +34,7 @@ export default function SupportScreen() {
     const body = message;
 
     const url = `mailto:${email}?subject=${encodeURIComponent(
-      subject
+      subject,
     )}&body=${encodeURIComponent(body)}`;
 
     Linking.openURL(url).catch(() => {
@@ -48,7 +50,7 @@ export default function SupportScreen() {
     const address =
       "No 12, 13 & 12/A, Kirthan Arcade, Aditya Nagar, Bangalore 560097";
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      address
+      address,
     )}`;
     Linking.openURL(url).catch(() => {});
   };
@@ -56,30 +58,13 @@ export default function SupportScreen() {
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
+      <ScreenHeader title="Contact Us" onBack={() => safeBack(router)} />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* HEADER WITH BACK BUTTON */}
-      {/* HEADER (same as Privacy) */}
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                <Ionicons
-                  name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-                  size={22}
-                  color={theme.colors.primary}
-                />
-              </TouchableOpacity>
-
-              <Text style={[styles.title, { color: theme.colors.text }]}>
-                Contact Us
-              </Text>
-
-              <View style={{ width: 40 }} />
-            </View>
-
         {/* CONTACT CARD */}
         <View
           style={[
@@ -112,13 +97,10 @@ export default function SupportScreen() {
               color={theme.colors.primary}
             />
             <Text
-              style={[
-                styles.infoText,
-                { color: theme.colors.textSecondary },
-              ]}
+              style={[styles.infoText, { color: theme.colors.textSecondary }]}
             >
-              No 12, 13 & 12/A, Kirthan Arcade, 3rd Floor, Aditya Nagar,
-              Sandeep Unnikrishnan Road, Bangalore - 560097
+              No 12, 13 & 12/A, Kirthan Arcade, 3rd Floor, Aditya Nagar, Sandeep
+              Unnikrishnan Road, Bangalore - 560097
             </Text>
           </View>
 
@@ -136,10 +118,7 @@ export default function SupportScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.outlineBtn,
-                { borderColor: theme.colors.primary },
-              ]}
+              style={[styles.outlineBtn, { borderColor: theme.colors.primary }]}
               onPress={handleMap}
             >
               <Ionicons
@@ -148,10 +127,7 @@ export default function SupportScreen() {
                 color={theme.colors.primary}
               />
               <Text
-                style={[
-                  styles.outlineText,
-                  { color: theme.colors.primary },
-                ]}
+                style={[styles.outlineText, { color: theme.colors.primary }]}
               >
                 View Map
               </Text>
@@ -178,10 +154,7 @@ export default function SupportScreen() {
         {/* SUBMIT BUTTON */}
         <TouchableOpacity
           onPress={handleSubmit}
-          style={[
-            styles.button,
-            { backgroundColor: theme.colors.primary },
-          ]}
+          style={[styles.button, { backgroundColor: theme.colors.primary }]}
         >
           <Text style={styles.buttonText}>Send Message</Text>
         </TouchableOpacity>
@@ -199,18 +172,18 @@ const styles = StyleSheet.create({
   },
 
   // ✅ NEW STYLE (added only)
-header: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-  paddingHorizontal: 16,
-  paddingVertical: 12,
-  borderBottomWidth: 0.5,
-},
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
 
-backBtn: {
-  width: 40,
-},
+  backBtn: {
+    width: 40,
+  },
 
   title: {
     fontSize: 20,

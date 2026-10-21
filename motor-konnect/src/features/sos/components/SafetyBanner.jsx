@@ -21,7 +21,7 @@ export default function SafetyBanner() {
 
   return (
     <LinearGradient
-      colors={["#0f172a", "#1e293b"]}
+      colors={["#14243B", "#1E3A5F"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -33,7 +33,7 @@ export default function SafetyBanner() {
       {/* Shield icon + title */}
       <View style={styles.topRow}>
         <View style={styles.shieldWrap}>
-          <Ionicons name="shield-checkmark" size={22} color="#4ade80" />
+          <Ionicons name="shield-checkmark" size={22} color="#6DB892" />
         </View>
         <View>
           <Text style={styles.title}>Your Safety Shield</Text>
@@ -61,7 +61,7 @@ export default function SafetyBanner() {
         onPress={handleCall}
         activeOpacity={0.85}
       >
-        <Ionicons name="call" size={16} color="#0f172a" />
+        <Ionicons name="call" size={16} color="#14243B" />
         <Text style={styles.callText}>Call Emergency Helpline</Text>
       </TouchableOpacity>
     </LinearGradient>
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 13,
-    backgroundColor: "rgba(74,222,128,0.15)",
+    backgroundColor: "rgba(109,184,146,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   subtitle: {
-    color: "#94a3b8",
+    color: "#8A919C",
     fontSize: 12,
     marginTop: 2,
   },
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   statLabel: {
-    color: "#64748b",
+    color: "#6B7280",
     fontSize: 10,
     marginTop: 2,
     fontWeight: "500",
@@ -164,12 +164,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#4ade80",
+    backgroundColor: "#6DB892",
     paddingVertical: 13,
     borderRadius: 14,
   },
   callText: {
-    color: "#0f172a",
+    color: "#14243B",
     fontWeight: "700",
     fontSize: 14,
   },

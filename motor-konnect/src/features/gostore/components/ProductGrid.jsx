@@ -95,7 +95,7 @@ export default function ProductGrid({ products }) {
                 <Ionicons
                   name={isWishlisted ? "heart" : "heart-outline"}
                   size={15}
-                  color={isWishlisted ? "#ef4444" : theme.colors.textSecondary}
+                  color={isWishlisted ? "#B3261E" : theme.colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -123,7 +123,7 @@ export default function ProductGrid({ products }) {
               {/* Rating */}
               {item.rating && (
                 <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={11} color="#f59e0b" />
+                  <Ionicons name="star" size={11} color="#B8862B" />
                   <Text
                     style={[
                       styles.ratingText,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     left: 8,
-    backgroundColor: "#16a34a",
+    backgroundColor: "#2E7D5B",
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   originalPrice: {
     fontSize: 11,
-    color: "#9ca3af",
+    color: "#8A919C",
     textDecorationLine: "line-through",
   },
   // Add button

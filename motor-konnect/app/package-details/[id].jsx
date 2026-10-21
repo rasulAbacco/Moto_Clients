@@ -11,6 +11,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCart } from "../../src/hooks/useCart";
+import { safeBack } from "../../src/utils/navigation";
+import ScreenHeader from "../../src/components/common/ScreenHeader";
 
 export default function PackageDetailsScreen() {
   const { id, packageData } = useLocalSearchParams();
@@ -91,13 +93,8 @@ export default function PackageDetailsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Package Details</Text>
-      </View>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={styles.container}>
+      <ScreenHeader title="Package Details" onBack={() => safeBack(router)} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -107,7 +104,7 @@ export default function PackageDetailsScreen() {
           <Text style={styles.title}>{pkg.name}</Text>
           <Text style={styles.price}>₹{pkg.price}</Text>
           <Text style={styles.garage}>
-            🏪 {pkg.garageName || pkg.user?.companyName}
+            {pkg.garageName || pkg.user?.companyName}
           </Text>
         </View>
 
@@ -115,7 +112,7 @@ export default function PackageDetailsScreen() {
           <Text style={styles.sectionLabel}>Included Services:</Text>
           {pkg.services?.map((s, i) => (
             <View key={i} style={styles.serviceRow}>
-              <Ionicons name="checkmark-circle" size={18} color="#4ade80" />
+              <Ionicons name="checkmark-circle" size={18} color="#6DB892" />
               <Text style={styles.serviceText}>{s.serviceName || s.name}</Text>
             </View>
           ))}
@@ -137,14 +134,14 @@ export default function PackageDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
+  container: { flex: 1, backgroundColor: "#F6F7F9" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#E3E6EB",
   },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: "700", marginLeft: 12 },
@@ -155,14 +152,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 16,
   },
-  title: { fontSize: 22, fontWeight: "800", color: "#1e1b4b" },
+  title: { fontSize: 22, fontWeight: "800", color: "#14243B" },
   price: {
     fontSize: 26,
     fontWeight: "900",
-    color: "#4338ca",
+    color: "#1E3A5F",
     marginVertical: 8,
   },
-  garage: { fontSize: 14, color: "#666" },
+  garage: { fontSize: 14, color: "#6B7280" },
   section: {
     backgroundColor: "#fff",
     padding: 20,
@@ -176,12 +173,12 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12,
   },
-  serviceText: { fontSize: 15, color: "#444" },
+  serviceText: { fontSize: 15, color: "#374151" },
   descTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
-  description: { fontSize: 14, color: "#666", lineHeight: 22 },
+  description: { fontSize: 14, color: "#6B7280", lineHeight: 22 },
   bookBtn: {
     margin: 20,
-    backgroundColor: "#4338ca",
+    backgroundColor: "#1E3A5F",
     padding: 18,
     borderRadius: 16,
     alignItems: "center",

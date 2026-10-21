@@ -23,8 +23,10 @@ import { useTheme } from "../../src/hooks/useTheme";
 import useAppStore from "../../src/store/useAppStore";
 import { useAddToCart } from "../../src/hooks/useAddToCart";
 import { getServicePrice } from "../../src/utils/pricing";
+import { safeBack } from "../../src/utils/navigation";
+import ScreenHeader from "../../src/components/common/ScreenHeader";
 
-const PRIMARY_BLUE = "#0062ff";
+const PRIMARY_BLUE = "#1E3A5F";
 
 export default function SubServiceDetails() {
   const { id, garageId } = useLocalSearchParams();
@@ -109,7 +111,7 @@ export default function SubServiceDetails() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={styles.centered}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={{ marginTop: 10 }}>Loading...</Text>
       </SafeAreaView>
@@ -118,23 +120,21 @@ export default function SubServiceDetails() {
 
   if (!service) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text>Service not found</Text>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1 }}>
+        <ScreenHeader title="Service" onBack={() => safeBack(router)} />
+        <View style={styles.centered}>
+          <Text style={{ color: "#6B7280" }}>Service not found</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={theme.colors.primary} />
-        </TouchableOpacity>
-        <Text numberOfLines={1} style={styles.headerTitle}>
-          {service.name}
-        </Text>
-        <View style={{ width: 22 }} />
-      </View>
+    <SafeAreaView
+      edges={["left", "right", "bottom"]}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+    >
+      <ScreenHeader title={service.name} onBack={() => safeBack(router)} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.heroWrap}>
@@ -166,7 +166,7 @@ export default function SubServiceDetails() {
 
           {garageName && (
             <View style={styles.garageLine}>
-              <Ionicons name="storefront-outline" size={13} color="#8E8E93" />
+              <Ionicons name="storefront-outline" size={13} color="#8A919C" />
               <Text style={styles.garageNameText}>{garageName}</Text>
             </View>
           )}
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#EBF5FF",
+    backgroundColor: "#E6ECF3",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     gap: 5,
     marginTop: 6,
   },
-  garageNameText: { fontSize: 13, color: "#6B6B80", fontWeight: "600" },
+  garageNameText: { fontSize: 13, color: "#6B7280", fontWeight: "600" },
   priceRow: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -248,18 +248,18 @@ const styles = StyleSheet.create({
   price: { fontSize: 22, fontWeight: "800", color: "green" },
   originalPrice: {
     fontSize: 14,
-    color: "#ABABC0",
+    color: "#8A919C",
     textDecorationLine: "line-through",
   },
   sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
   desc: { fontSize: 14, lineHeight: 20 },
   footer: { padding: 16 },
   bookBtn: {
-    backgroundColor: "#2563eb",
+    backgroundColor: "#1E3A5F",
     padding: 14,
     borderRadius: 10,
     alignItems: "center",
   },
-  bookBtnAdded: { backgroundColor: "#ef4444" },
+  bookBtnAdded: { backgroundColor: "#B3261E" },
   bookText: { color: "#fff", fontWeight: "700" },
 });
