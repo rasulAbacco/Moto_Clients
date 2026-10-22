@@ -22,7 +22,7 @@ export default function MembershipCard() {
 
   return (
     <LinearGradient
-      colors={["#ef4444", "#b91c9a", "#7c3aed"]}
+      colors={["#B3261E", "#1E3A5F", "#1E3A5F"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.card}
@@ -61,7 +61,7 @@ export default function MembershipCard() {
           activeOpacity={0.85}
         >
           <Text style={styles.renewText}>View Details</Text>
-          <Ionicons name="chevron-forward" size={12} color="#9333ea" />
+          <Ionicons name="chevron-forward" size={12} color="#1E3A5F" />
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#4ade80",
+    backgroundColor: "#6DB892",
   },
   activeText: {
     color: "#fff",
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   renewText: {
-    color: "#9333ea",
+    color: "#1E3A5F",
     fontSize: 12,
     fontWeight: "700",
   },

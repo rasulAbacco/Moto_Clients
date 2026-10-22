@@ -128,15 +128,15 @@ export default function CuratedServices() {
                       key={i}
                       name="star"
                       size={12}
-                      color={i < item.rating ? "#EAB308" : "#CBD5E1"}
+                      color={i < item.rating ? "#B8862B" : "#C9CED6"}
                     />
                   ))}
                 </View>
-                <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                <Ionicons name="checkmark-circle" size={16} color="#2E7D5B" />
               </View>
 
               <Text style={styles.text} numberOfLines={3}>
-                "{item.text}"
+                &ldquo;{item.text}&rdquo;
               </Text>
 
               <View style={styles.footer}>
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#E3E6EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   stars: { flexDirection: "row", gap: 2 },
   text: {
-    color: "#334155",
+    color: "#374151",
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "500",
@@ -188,9 +188,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  name: { color: "#1E293B", fontSize: 12, fontWeight: "700" },
+  name: { color: "#1E3A5F", fontSize: 12, fontWeight: "700" },
   verified: {
-    color: "#94A3B8",
+    color: "#8A919C",
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.5,

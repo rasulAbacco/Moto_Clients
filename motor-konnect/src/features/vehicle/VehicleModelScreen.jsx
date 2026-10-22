@@ -15,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme.js";
 import { useEffect, useState } from "react";
 import api from "../../services/apiClient.js";
+import { safeBack } from "../../utils/navigation";
+import ScreenHeader from "../../components/common/ScreenHeader";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 48) / 2;
@@ -62,11 +64,11 @@ export default function VehicleModelScreen() {
 
   const isDark = theme.dark;
   const surface = isDark ? "#1c1c1e" : "#ffffff";
-  const textPrimary = isDark ? "#f5f5f5" : "#111111";
-  const textSecondary = isDark ? "#8e8e93" : "#6b6b6b";
-  const border = isDark ? "#3a3a3c" : "#e8e8e8";
-  const accent = "#0037ff";
-  const cardBg = isDark ? "#2c2c2e" : "#f9f9f9";
+  const textPrimary = isDark ? "#F6F7F9" : "#1A1D23";
+  const textSecondary = isDark ? "#8A919C" : "#6B7280";
+  const border = isDark ? "#3a3a3c" : "#E3E6EB";
+  const accent = "#1E3A5F";
+  const cardBg = isDark ? "#2c2c2e" : "#F6F7F9";
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -106,6 +108,7 @@ export default function VehicleModelScreen() {
   if (loading) {
     return (
       <SafeAreaView
+        edges={["left", "right", "bottom"]}
         style={{
           flex: 1,
           justifyContent: "center",
@@ -121,21 +124,12 @@ export default function VehicleModelScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
-      <View style={[styles.header, { borderBottomColor: border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={accent}
-          />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textPrimary }]}>
-          Select Model
-        </Text>
-        <View style={styles.headerRight} />
-      </View>
+      <ScreenHeader
+        title="Select Model"
+        onBack={() => safeBack(router, "/vehicle/brand")}
+      />
 
       <View style={styles.heroWrap}>
         <Text style={[styles.heroEyebrow, { color: accent }]}>STEP 2 OF 3</Text>

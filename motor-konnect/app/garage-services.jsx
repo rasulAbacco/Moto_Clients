@@ -25,6 +25,8 @@ import { useEffect, useMemo } from "react";
 import useAppStore from "../src/store/useAppStore";
 import { flattenGarage } from "../src/services/search.service";
 import ServiceCardList from "../src/components/ServiceCardList";
+import { safeBack } from "../src/utils/navigation";
+import ScreenHeader from "../src/components/common/ScreenHeader";
 
 export default function GarageServicesScreen() {
   const { theme } = useTheme();
@@ -67,17 +69,10 @@ export default function GarageServicesScreen() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
     >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text
-          style={[styles.headerTitle, { color: theme.colors.text }]}
-          numberOfLines={1}
-        >
-          {garage.companyName || garage.name || "Garage"}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={garage.companyName || garage.name || "Garage"}
+        onBack={() => safeBack(router)}
+      />
 
       <ServiceCardList
         rows={rows}

@@ -32,15 +32,15 @@ export default function NotificationPanel({ visible, onClose }) {
   const { user } = useContext(AuthContext);
   const phone = user?.phone || user?.phoneNumber || null;
 
-  const slideAnim    = useRef(new Animated.Value(PANEL_HEIGHT)).current;
+  const slideAnim = useRef(new Animated.Value(PANEL_HEIGHT)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
   // ─── State ────────────────────────────────────────────────────────────────
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading]             = useState(false);
-  const [activeTab, setActiveTab]         = useState("All");
-  const [readIds, setReadIds]             = useState(new Set());
-  const [clearedIds, setClearedIds]       = useState(new Set());
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("All");
+  const [readIds, setReadIds] = useState(new Set());
+  const [clearedIds, setClearedIds] = useState(new Set());
 
   // ─── Load persisted sets from AsyncStorage on mount ──────────────────────
   const loadPersistedState = useCallback(async () => {
@@ -49,7 +49,7 @@ export default function NotificationPanel({ visible, onClose }) {
         AsyncStorage.getItem(storageKey(phone, "read")),
         AsyncStorage.getItem(storageKey(phone, "cleared")),
       ]);
-      if (rawRead)    setReadIds(new Set(JSON.parse(rawRead)));
+      if (rawRead) setReadIds(new Set(JSON.parse(rawRead)));
       if (rawCleared) setClearedIds(new Set(JSON.parse(rawCleared)));
     } catch (err) {
       console.error("NOTIF STORAGE LOAD ERROR:", err);
@@ -65,7 +65,7 @@ export default function NotificationPanel({ visible, onClose }) {
     try {
       await AsyncStorage.setItem(
         storageKey(phone, "read"),
-        JSON.stringify([...nextSet])
+        JSON.stringify([...nextSet]),
       );
     } catch (err) {
       console.error("NOTIF STORAGE WRITE (read) ERROR:", err);
@@ -76,7 +76,7 @@ export default function NotificationPanel({ visible, onClose }) {
     try {
       await AsyncStorage.setItem(
         storageKey(phone, "cleared"),
-        JSON.stringify([...nextSet])
+        JSON.stringify([...nextSet]),
       );
     } catch (err) {
       console.error("NOTIF STORAGE WRITE (cleared) ERROR:", err);
@@ -99,12 +99,12 @@ export default function NotificationPanel({ visible, onClose }) {
     }
   }, [phone]);
 
-useEffect(() => {
-  if (visible) {
-    setNotifications([]);   // 🔥 reset old data
-    fetchNotifications();   // 🔥 fetch fresh
-  }
-}, [visible]);
+  useEffect(() => {
+    if (visible) {
+      setNotifications([]); // 🔥 reset old data
+      fetchNotifications(); // 🔥 fetch fresh
+    }
+  }, [visible]);
 
   // ─── Animation ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -157,19 +157,22 @@ useEffect(() => {
           }).start();
         }
       },
-    })
+    }),
   ).current;
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
   // Tap a notification row → mark as read
-  const markRead = useCallback((id) => {
-    setReadIds((prev) => {
-      const next = new Set([...prev, id]);
-      saveReadIds(next);
-      return next;
-    });
-  }, [phone]);
+  const markRead = useCallback(
+    (id) => {
+      setReadIds((prev) => {
+        const next = new Set([...prev, id]);
+        saveReadIds(next);
+        return next;
+      });
+    },
+    [phone],
+  );
 
   // Mark all visible as read
   const markAllRead = useCallback(() => {
@@ -181,19 +184,22 @@ useEffect(() => {
   }, [notifications, phone]);
 
   // Dismiss (X) on a single row → cleared permanently for this user
-  const clearOne = useCallback((id) => {
-    // Mark read too so the unread count doesn't flicker
-    setReadIds((prev) => {
-      const next = new Set([...prev, id]);
-      saveReadIds(next);
-      return next;
-    });
-    setClearedIds((prev) => {
-      const next = new Set([...prev, id]);
-      saveClearedIds(next);
-      return next;
-    });
-  }, [phone]);
+  const clearOne = useCallback(
+    (id) => {
+      // Mark read too so the unread count doesn't flicker
+      setReadIds((prev) => {
+        const next = new Set([...prev, id]);
+        saveReadIds(next);
+        return next;
+      });
+      setClearedIds((prev) => {
+        const next = new Set([...prev, id]);
+        saveClearedIds(next);
+        return next;
+      });
+    },
+    [phone],
+  );
 
   // Clear all → hides everything currently visible for this user
   const clearAll = useCallback(() => {
@@ -219,12 +225,12 @@ useEffect(() => {
             });
           },
         },
-      ]
+      ],
     );
   }, [notifications, phone]);
 
   // ─── Derived data ─────────────────────────────────────────────────────────
-  const isUnread  = (n) => !readIds.has(n.id);
+  const isUnread = (n) => !readIds.has(n.id);
   const isCleared = (n) => clearedIds.has(n.id);
 
   // Remove cleared items before any tab filtering
@@ -271,7 +277,9 @@ useEffect(() => {
       >
         {/* Drag handle */}
         <View {...panResponder.panHandlers} style={styles.handleArea}>
-          <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
+          <View
+            style={[styles.handle, { backgroundColor: theme.colors.border }]}
+          />
         </View>
 
         {/* Header */}
@@ -281,7 +289,12 @@ useEffect(() => {
               Notifications
             </Text>
             {unreadCount > 0 && (
-              <View style={[styles.unreadBadge, { backgroundColor: theme.colors.primary }]}>
+              <View
+                style={[
+                  styles.unreadBadge,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+              >
                 <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
               </View>
             )}
@@ -295,7 +308,12 @@ useEffect(() => {
                 onPress={markAllRead}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.headerActionText, { color: theme.colors.primary }]}>
+                <Text
+                  style={[
+                    styles.headerActionText,
+                    { color: theme.colors.primary },
+                  ]}
+                >
                   Mark all read
                 </Text>
               </TouchableOpacity>
@@ -311,7 +329,7 @@ useEffect(() => {
                 <Text
                   style={[
                     styles.headerActionText,
-                    { color: theme.colors.error || "#ef4444" },
+                    { color: theme.colors.error || "#B3261E" },
                   ]}
                 >
                   Clear all
@@ -344,7 +362,8 @@ useEffect(() => {
                   active
                     ? { backgroundColor: theme.colors.primary }
                     : {
-                        backgroundColor: theme.colors.card || theme.colors.surface,
+                        backgroundColor:
+                          theme.colors.card || theme.colors.surface,
                         borderWidth: 0.5,
                         borderColor: theme.colors.border,
                       },
@@ -369,7 +388,12 @@ useEffect(() => {
         {loading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+            <Text
+              style={[
+                styles.loadingText,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
               Loading notifications…
             </Text>
           </View>
@@ -386,12 +410,17 @@ useEffect(() => {
                   color={theme.colors.textSecondary}
                   style={{ opacity: 0.4, marginBottom: 10 }}
                 />
-                <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                <Text
+                  style={[
+                    styles.emptyText,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
                   {activeTab === "Unread"
                     ? "All caught up! No unread notifications."
                     : activeTab === "Offers"
-                    ? "No offers right now. Check back soon!"
-                    : "No notifications yet."}
+                      ? "No offers right now. Check back soon!"
+                      : "No notifications yet."}
                 </Text>
               </View>
             ) : (
@@ -415,8 +444,17 @@ useEffect(() => {
                       ]}
                     >
                       {/* Icon */}
-                      <View style={[styles.notifIcon, { backgroundColor: notif.iconBg }]}>
-                        <Ionicons name={notif.icon} size={20} color={notif.iconColor} />
+                      <View
+                        style={[
+                          styles.notifIcon,
+                          { backgroundColor: notif.iconBg },
+                        ]}
+                      >
+                        <Ionicons
+                          name={notif.icon}
+                          size={20}
+                          color={notif.iconColor}
+                        />
                       </View>
 
                       {/* Content */}
@@ -435,19 +473,30 @@ useEffect(() => {
                             {notif.title}
                           </Text>
                           <Text
-                            style={[styles.notifTime, { color: theme.colors.textSecondary }]}
+                            style={[
+                              styles.notifTime,
+                              { color: theme.colors.textSecondary },
+                            ]}
                           >
                             {notif.time}
                           </Text>
                         </View>
                         <Text
-                          style={[styles.notifBody, { color: theme.colors.textSecondary }]}
+                          style={[
+                            styles.notifBody,
+                            { color: theme.colors.textSecondary },
+                          ]}
                           numberOfLines={2}
                         >
                           {notif.body}
                         </Text>
                         {notif.garageName && (
-                          <Text style={[styles.garageTag, { color: theme.colors.primary }]}>
+                          <Text
+                            style={[
+                              styles.garageTag,
+                              { color: theme.colors.primary },
+                            ]}
+                          >
                             {notif.garageName}
                           </Text>
                         )}
@@ -457,7 +506,10 @@ useEffect(() => {
                       <View style={styles.notifRight}>
                         {unread && (
                           <View
-                            style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]}
+                            style={[
+                              styles.unreadDot,
+                              { backgroundColor: theme.colors.primary },
+                            ]}
                           />
                         )}
                         <TouchableOpacity
@@ -478,8 +530,13 @@ useEffect(() => {
                 })}
 
                 <View style={styles.endNote}>
-                  <Text style={[styles.endNoteText, { color: theme.colors.textSecondary }]}>
-                    You're all caught up 🎉
+                  <Text
+                    style={[
+                      styles.endNoteText,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    You&apos;re all caught up
                   </Text>
                 </View>
               </>

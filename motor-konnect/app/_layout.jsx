@@ -7,52 +7,39 @@ import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
 import Toast from "react-native-toast-message";
+import { StatusBar } from "expo-status-bar";
+import { Platform } from "react-native";
+import { palette, shadow } from "../src/theme/palette";
 
 import { AuthProvider, useAuth } from "../src/providers/AuthProvider";
 import { VehicleProvider } from "../src/providers/VehicleProvider";
 import { ThemeProvider } from "../src/providers/ThemeProvider";
 import { QueryProvider } from "../src/providers/QueryProvider";
 import { CartProvider } from "../src/providers/CartProvider";
+import { PartsCartProvider } from "../src/providers/PartsCartProvider";
 import { LoginSheetProvider } from "../src/providers/LoginSheetProvider";
 import { getSelectedVehicle } from "../src/features/vehicle/vehicle.service";
 import ChatWidget from "../src/components/chat/ChatWidget";
 
 // ─── Custom Toast Config ──────────────────────────────────────────────────────
+// Light, classic toast: white card, thin coloured edge, muted status colour.
+const ToastCard = ({ text1, text2, icon, color }) => (
+  <View style={[toastStyles.wrap, { borderLeftColor: color }]}>
+    <Ionicons name={icon} size={22} color={color} />
+    <View style={toastStyles.textWrap}>
+      {text1 ? <Text style={toastStyles.title}>{text1}</Text> : null}
+      {text2 ? <Text style={toastStyles.subtitle}>{text2}</Text> : null}
+    </View>
+  </View>
+);
+
 const toastConfig = {
-  success: ({ text1, text2 }) => (
-    <View style={toastStyles.wrap}>
-      <View style={[toastStyles.iconWrap, { backgroundColor: "#22c55e20" }]}>
-        <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-      </View>
-      <View style={toastStyles.textWrap}>
-        {text1 ? <Text style={toastStyles.title}>{text1}</Text> : null}
-        {text2 ? <Text style={toastStyles.subtitle}>{text2}</Text> : null}
-      </View>
-    </View>
+  success: (p) => (
+    <ToastCard {...p} icon="checkmark-circle" color={palette.green} />
   ),
-
-  error: ({ text1, text2 }) => (
-    <View style={toastStyles.wrap}>
-      <View style={[toastStyles.iconWrap, { backgroundColor: "#ef444420" }]}>
-        <Ionicons name="close-circle" size={20} color="#ef4444" />
-      </View>
-      <View style={toastStyles.textWrap}>
-        {text1 ? <Text style={toastStyles.title}>{text1}</Text> : null}
-        {text2 ? <Text style={toastStyles.subtitle}>{text2}</Text> : null}
-      </View>
-    </View>
-  ),
-
-  info: ({ text1, text2 }) => (
-    <View style={toastStyles.wrap}>
-      <View style={[toastStyles.iconWrap, { backgroundColor: "#3b82f620" }]}>
-        <Ionicons name="information-circle" size={20} color="#3b82f6" />
-      </View>
-      <View style={toastStyles.textWrap}>
-        {text1 ? <Text style={toastStyles.title}>{text1}</Text> : null}
-        {text2 ? <Text style={toastStyles.subtitle}>{text2}</Text> : null}
-      </View>
-    </View>
+  error: (p) => <ToastCard {...p} icon="alert-circle" color={palette.red} />,
+  info: (p) => (
+    <ToastCard {...p} icon="information-circle" color={palette.navy800} />
   ),
 };
 
@@ -60,42 +47,30 @@ const toastStyles = StyleSheet.create({
   wrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
-    borderRadius: 16,
+    backgroundColor: palette.white,
+    borderRadius: 12,
+    borderLeftWidth: 4,
     paddingVertical: 12,
     paddingHorizontal: 14,
     marginHorizontal: 16,
-    gap: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 20,
-    minWidth: 260,
-    maxWidth: 340,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
+    gap: 12,
+    width: "92%",
+    maxWidth: 420,
+    ...shadow.raised,
   },
   textWrap: {
     flex: 1,
   },
   title: {
-    color: "#ffffff",
+    color: palette.ink,
     fontSize: 14,
-    fontWeight: "700",
-    letterSpacing: -0.2,
+    fontWeight: "600",
   },
   subtitle: {
-    color: "#ffffff99",
-    fontSize: 12,
-    marginTop: 1,
-    lineHeight: 16,
+    color: palette.slate500,
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
   },
 });
 
@@ -137,7 +112,7 @@ function AppGuard({ children }) {
   if (!isReady) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#ef4444" />
+        <ActivityIndicator size="large" color={palette.navy800} />
       </View>
     );
   }
@@ -155,12 +130,38 @@ export default function RootLayout() {
             <VehicleProvider>
               <QueryProvider>
                 <CartProvider>
-                  <LoginSheetProvider>
-                    <AppGuard>
-                      <Stack screenOptions={{ headerShown: false }} />
-                      <ChatWidget />
-                    </AppGuard>
-                  </LoginSheetProvider>
+                  <PartsCartProvider>
+                    <LoginSheetProvider>
+                      <AppGuard>
+                        <StatusBar style="dark" />
+                        <Stack
+                          screenOptions={{
+                            headerShown: false,
+                            // iOS: native edge swipe-back from anywhere on the screen
+                            gestureEnabled: true,
+                            fullScreenGestureEnabled: true,
+                            // Android: standard right-to-left push; iOS keeps native push
+                            animation:
+                              Platform.OS === "android"
+                                ? "slide_from_right"
+                                : "default",
+                            contentStyle: { backgroundColor: palette.slate50 },
+                          }}
+                        >
+                          {/* Root screens: no swipe-back into the splash/auth redirect */}
+                          <Stack.Screen
+                            name="index"
+                            options={{ gestureEnabled: false }}
+                          />
+                          <Stack.Screen
+                            name="(tabs)"
+                            options={{ gestureEnabled: false }}
+                          />
+                        </Stack>
+                        <ChatWidget />
+                      </AppGuard>
+                    </LoginSheetProvider>
+                  </PartsCartProvider>
                 </CartProvider>
               </QueryProvider>
             </VehicleProvider>
@@ -172,7 +173,7 @@ export default function RootLayout() {
       <Toast
         config={toastConfig}
         position="top"
-        topOffset={60}
+        topOffset={Platform.OS === "ios" ? 60 : 40}
         visibilityTime={3000}
       />
     </>
@@ -184,6 +185,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: palette.slate50,
   },
 });

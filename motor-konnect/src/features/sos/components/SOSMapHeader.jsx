@@ -1,16 +1,17 @@
-//client\src\features\sos\components\SOSMapHeader.jsx
+// src/features/sos/components/SOSMapHeader.jsx
 //
-// ✅ CHANGED: switched from Google Maps tiles to OpenStreetMap tiles via
-// <UrlTile>. This removes the dependency on a Google Maps SDK API key
-// entirely — the previous crash on the built APK was because
-// app.json had no android.config.googleMaps.apiKey, so MapView threw a
-// native (non-JS-catchable) exception the instant it mounted. With
-// UrlTile + provider={null}, no Google key/config is required at all.
+// SOS header: the user's current location + a small map.
 //
-// ✅ Also added a `!location` guard alongside `denied` before rendering
-// MapView — previously there was a brief window where `loading` was
-// false and `denied` was false but `location` hadn't been set yet,
-// which would have thrown on `location.latitude` being null.
+// Map: free OpenStreetMap tiles via Leaflet in a WebView (FreeMap) — no
+// Google Maps SDK and no API key on Android or iOS.
+//   (Previously react-native-maps was used. On Android it always runs on the
+//   Google Maps SDK and crashed the whole app in release builds without a
+//   key, even with OSM tiles on top.)
+//
+// Location: checks device location is switched on, shows the last known
+// position instantly, then refines it with a 10s timeout, so the screen
+// never hangs on "Fetching your location…". If the map can't load, a
+// location card with "Open in Maps" is shown instead.
 
 import {
   View,
@@ -20,25 +21,71 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
+  Platform,
+  Linking,
 } from "react-native";
-import MapView, { UrlTile, Marker, Circle } from "react-native-maps";
 import * as Location from "expo-location";
+import FreeMap from "../../../components/map/FreeMap";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
-import { useEffect, useState, useRef } from "react";
+import { Component, useCallback, useEffect, useRef, useState } from "react";
+
+const LOCATION_TIMEOUT_MS = 10000;
+
+const withTimeout = (promise, ms) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Location timed out")), ms),
+    ),
+  ]);
+
+// Catches JS/render errors from the map so SOS stays usable.
+class MapErrorBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    console.warn("SOS map failed to render:", error?.message);
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+const openInMaps = ({ latitude, longitude }) => {
+  const label = encodeURIComponent("My location");
+  const url =
+    Platform.OS === "ios"
+      ? `http://maps.apple.com/?ll=${latitude},${longitude}&q=${label}`
+      : `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`;
+  Linking.openURL(url).catch(() =>
+    Linking.openURL(
+      `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+    ),
+  );
+};
 
 export default function SOSMapHeader() {
   const { theme } = useTheme();
+  const c = theme.colors;
+
+  // status: loading | ready | denied | services-off | error
+  const [status, setStatus] = useState("loading");
   const [location, setLocation] = useState(null);
   const [address, setAddress] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [denied, setDenied] = useState(false);
+  const [mapFailed, setMapFailed] = useState(false);
+  const mounted = useRef(true);
 
   // Pulse animation for the SOS dot
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1.35,
@@ -53,211 +100,243 @@ export default function SOSMapHeader() {
           useNativeDriver: true,
         }),
       ]),
-    ).start();
-  }, []);
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse]);
 
-  useEffect(() => {
-    requestLocation();
-  }, []);
-
-  const requestLocation = async () => {
-    setLoading(true);
-    setDenied(false);
+  const lookupAddress = async (coords) => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setDenied(true);
-        setLoading(false);
-        return;
-      }
-      const current = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLocation(current.coords);
-
-      // Reverse geocode
-      const [geo] = await Location.reverseGeocodeAsync({
-        latitude: current.coords.latitude,
-        longitude: current.coords.longitude,
-      });
-      if (geo) {
+      const [geo] = await withTimeout(
+        Location.reverseGeocodeAsync({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        }),
+        LOCATION_TIMEOUT_MS,
+      );
+      if (geo && mounted.current) {
         setAddress(
-          [geo.name, geo.street, geo.city, geo.region]
+          [
+            geo.name,
+            geo.street,
+            geo.district || geo.subregion,
+            geo.city,
+            geo.region,
+          ]
             .filter(Boolean)
+            .filter((v, i, a) => a.indexOf(v) === i)
             .join(", "),
         );
       }
     } catch (e) {
-      console.warn("Location error:", e.message);
-      setDenied(true);
-    } finally {
-      setLoading(false);
+      // Address is a nice-to-have; coordinates are enough for SOS.
+      console.warn("Reverse geocode failed:", e?.message);
     }
   };
 
-  // ✅ Covers: still loading, permission denied, OR location not yet set
-  // (guards against a null-location render race before MapView mounts).
-  const showPlaceholder = loading || denied || !location;
+  const requestLocation = useCallback(async () => {
+    setStatus("loading");
+    try {
+      const servicesOn = await Location.hasServicesEnabledAsync();
+      if (!servicesOn) {
+        if (mounted.current) setStatus("services-off");
+        return;
+      }
+
+      const { status: perm } =
+        await Location.requestForegroundPermissionsAsync();
+      if (perm !== "granted") {
+        if (mounted.current) setStatus("denied");
+        return;
+      }
+
+      // 1) Instant: last known position (may be null on a fresh device)
+      const last = await Location.getLastKnownPositionAsync().catch(() => null);
+      if (last?.coords && mounted.current) {
+        setLocation(last.coords);
+        setStatus("ready");
+        lookupAddress(last.coords);
+      }
+
+      // 2) Accurate: current position, but never wait forever
+      try {
+        const current = await withTimeout(
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }),
+          LOCATION_TIMEOUT_MS,
+        );
+        if (current?.coords && mounted.current) {
+          setLocation(current.coords);
+          setStatus("ready");
+          lookupAddress(current.coords);
+        }
+      } catch (e) {
+        // Keep the last known position if we have one
+        if (!last?.coords && mounted.current) setStatus("error");
+        console.warn("Current location failed:", e?.message);
+      }
+    } catch (e) {
+      console.warn("Location error:", e?.message);
+      if (mounted.current) setStatus("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    requestLocation();
+    return () => {
+      mounted.current = false;
+    };
+  }, [requestLocation]);
+
+  // ── Placeholders ──────────────────────────────────────────────────────────
+  const Placeholder = ({ icon, title, sub, action, onAction, spinner }) => (
+    <View style={[styles.mapPlaceholder, { backgroundColor: c.card }]}>
+      {spinner ? (
+        <ActivityIndicator size="large" color={c.primary} />
+      ) : (
+        <Ionicons name={icon} size={36} color={c.textSecondary} />
+      )}
+      {!!title && (
+        <Text style={[styles.deniedTitle, { color: c.text }]}>{title}</Text>
+      )}
+      {!!sub && (
+        <Text style={[styles.deniedSub, { color: c.textSecondary }]}>
+          {sub}
+        </Text>
+      )}
+      {!!action && (
+        <TouchableOpacity
+          style={[styles.retryBtn, { backgroundColor: c.primary }]}
+          onPress={onAction}
+        >
+          <Text style={styles.retryText}>{action}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  // Shown instead of the embedded map when a map can't be rendered safely
+  const LocationCard = () => (
+    <View style={[styles.mapPlaceholder, { backgroundColor: c.card }]}>
+      <View style={[styles.pinCircle, { backgroundColor: c.dangerSoft }]}>
+        <Ionicons name="location" size={28} color={c.danger} />
+      </View>
+      <Text style={[styles.deniedTitle, { color: c.text }]}>
+        Location found
+      </Text>
+      <Text style={[styles.deniedSub, { color: c.textSecondary }]}>
+        {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+      </Text>
+      <TouchableOpacity
+        style={[styles.retryBtn, { backgroundColor: c.primary }]}
+        onPress={() => openInMaps(location)}
+      >
+        <Text style={styles.retryText}>Open in Maps</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderMapArea = () => {
+    if (status === "loading" && !location) {
+      return <Placeholder spinner sub="Fetching your location…" />;
+    }
+    if (status === "services-off") {
+      return (
+        <Placeholder
+          icon="navigate-circle-outline"
+          title="Location is turned off"
+          sub="Turn on location (GPS) in your phone settings"
+          action="Try again"
+          onAction={requestLocation}
+        />
+      );
+    }
+    if (status === "denied") {
+      return (
+        <Placeholder
+          icon="location-outline"
+          title="Location access denied"
+          sub="Allow location so help can reach you faster"
+          action="Grant access"
+          onAction={async () => {
+            const { canAskAgain } =
+              await Location.getForegroundPermissionsAsync();
+            if (canAskAgain) requestLocation();
+            else Linking.openSettings();
+          }}
+        />
+      );
+    }
+    if (!location) {
+      return (
+        <Placeholder
+          icon="cloud-offline-outline"
+          title="Couldn't get your location"
+          sub="Emergency services below still work"
+          action="Try again"
+          onAction={requestLocation}
+        />
+      );
+    }
+    if (mapFailed) return <LocationCard />;
+
+    return (
+      <MapErrorBoundary fallback={<LocationCard />}>
+        <FreeMap
+          latitude={location.latitude}
+          longitude={location.longitude}
+          zoom={16}
+          markerColor={c.danger}
+          accuracyRadius={Math.min(Math.max(location.accuracy || 60, 30), 300)}
+          style={StyleSheet.absoluteFillObject}
+          onError={() => setMapFailed(true)}
+        />
+        <TouchableOpacity
+          onPress={() => openInMaps(location)}
+          style={[styles.mapBtn, { backgroundColor: c.surface }]}
+          accessibilityLabel="Open in Maps"
+        >
+          <Ionicons name="navigate" size={14} color={c.primary} />
+          <Text style={[styles.mapBtnText, { color: c.primary }]}>
+            Open in Maps
+          </Text>
+        </TouchableOpacity>
+      </MapErrorBoundary>
+    );
+  };
 
   return (
     <View style={styles.wrapper}>
       {/* Location label row */}
       <View style={styles.locationRow}>
         <View style={styles.locationLeft}>
-          <Ionicons
-            name="location-sharp"
-            size={15}
-            color={theme.colors.primary}
-          />
-          <Text
-            style={[
-              styles.locationLabel,
-              { color: theme.colors.textSecondary },
-            ]}
-          >
+          <Ionicons name="location-sharp" size={15} color={c.primary} />
+          <Text style={[styles.locationLabel, { color: c.textSecondary }]}>
             Your Location
           </Text>
+          {status === "loading" && !!location && (
+            <ActivityIndicator size="small" color={c.textMuted} />
+          )}
         </View>
         <TouchableOpacity
           onPress={requestLocation}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Refresh location"
         >
-          <Ionicons
-            name="refresh-outline"
-            size={16}
-            color={theme.colors.primary}
-          />
+          <Ionicons name="refresh-outline" size={16} color={c.primary} />
         </TouchableOpacity>
       </View>
 
-      {address && (
-        <Text
-          style={[styles.addressText, { color: theme.colors.text }]}
-          numberOfLines={2}
-        >
+      {!!address && (
+        <Text style={[styles.addressText, { color: c.text }]} numberOfLines={2}>
           {address}
         </Text>
       )}
 
-      {/* Map container */}
-      <View style={styles.mapContainer}>
-        {loading ? (
-          <View
-            style={[
-              styles.mapPlaceholder,
-              { backgroundColor: theme.colors.card },
-            ]}
-          >
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text
-              style={[
-                styles.placeholderText,
-                { color: theme.colors.textSecondary },
-              ]}
-            >
-              Fetching your location…
-            </Text>
-          </View>
-        ) : denied ? (
-          <View
-            style={[
-              styles.mapPlaceholder,
-              { backgroundColor: theme.colors.card },
-            ]}
-          >
-            <Ionicons
-              name="location-outline"
-              size={36}
-              color={theme.colors.textSecondary}
-            />
-            <Text style={[styles.deniedTitle, { color: theme.colors.text }]}>
-              Location Access Denied
-            </Text>
-            <Text
-              style={[styles.deniedSub, { color: theme.colors.textSecondary }]}
-            >
-              Enable location to see your position
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.retryBtn,
-                { backgroundColor: theme.colors.primary },
-              ]}
-              onPress={requestLocation}
-            >
-              <Text style={styles.retryText}>Grant Access</Text>
-            </TouchableOpacity>
-          </View>
-        ) : !location ? (
-          // ✅ NEW: location still null even though loading/denied are both
-          // false (race window) — show the same loading placeholder
-          // instead of letting MapView read location.latitude on null.
-          <View
-            style={[
-              styles.mapPlaceholder,
-              { backgroundColor: theme.colors.card },
-            ]}
-          >
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text
-              style={[
-                styles.placeholderText,
-                { color: theme.colors.textSecondary },
-              ]}
-            >
-              Fetching your location…
-            </Text>
-          </View>
-        ) : (
-          <MapView
-            style={StyleSheet.absoluteFillObject}
-            // ✅ No Google provider — avoids requiring
-            // android.config.googleMaps.apiKey in app.json entirely.
-            provider={null}
-            initialRegion={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-              latitudeDelta: 0.012,
-              longitudeDelta: 0.012,
-            }}
-            showsUserLocation={false}
-            showsCompass={false}
-            showsMyLocationButton={false}
-          >
-            {/* ✅ OpenStreetMap tile layer — free, no API key required.
-                For higher production traffic, consider a paid OSM tile
-                provider (MapTiler / Stadia Maps / Thunderforest) instead
-                of hitting the public tile.openstreetmap.org server hard. */}
-            <UrlTile
-              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maximumZ={19}
-              flipY={false}
-            />
-
-            {/* Accuracy circle */}
-            <Circle
-              center={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              radius={120}
-              fillColor="rgba(239,68,68,0.12)"
-              strokeColor="rgba(239,68,68,0.4)"
-              strokeWidth={1}
-            />
-            <Marker
-              coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={styles.markerOuter}>
-                <View style={styles.markerInner} />
-              </View>
-            </Marker>
-          </MapView>
-        )}
+      <View style={[styles.mapContainer, { backgroundColor: c.border }]}>
+        {renderMapArea()}
       </View>
 
       {/* SOS pulse indicator + heading */}
@@ -266,7 +345,7 @@ export default function SOSMapHeader() {
           style={[styles.sosPulse, { transform: [{ scale: pulse }] }]}
         />
         <View style={styles.sosDot} />
-        <Text style={[styles.title, { color: theme.colors.text }]}>
+        <Text style={[styles.title, { color: c.text }]}>
           Choose Emergency Service
         </Text>
       </View>
@@ -304,7 +383,6 @@ const styles = StyleSheet.create({
     height: 230,
     borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: "#E5E7EB",
     marginBottom: 18,
   },
   mapPlaceholder: {
@@ -314,7 +392,13 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 20,
   },
-  placeholderText: { fontSize: 13 },
+  pinCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   deniedTitle: { fontSize: 16, fontWeight: "700" },
   deniedSub: { fontSize: 13, textAlign: "center" },
   retryBtn: {
@@ -323,27 +407,24 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
   },
-  retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-
-  // Custom marker
-  markerOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(239,68,68,0.25)",
+  mapBtn: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 34,
+    borderRadius: 17,
+    shadowColor: "#14243B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  markerInner: {
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: "#ef4444",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-
-  // Title row
+  mapBtnText: { fontSize: 12, fontWeight: "700" },
+  retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -356,13 +437,13 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "rgba(239,68,68,0.25)",
+    backgroundColor: "rgba(179,38,30,0.25)",
   },
   sosDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#ef4444",
+    backgroundColor: "#B3261E",
     marginLeft: 2,
   },
   title: {

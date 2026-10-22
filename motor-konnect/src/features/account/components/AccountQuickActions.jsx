@@ -17,9 +17,15 @@ export default function AccountQuickActions() {
 
   const actions = [
     {
-      title: "Order History",
+      title: "Service History",
       icon: "cube-outline",
       path: "/service-history",
+      badge: null,
+    },
+    {
+      title: "Parts Orders",
+      icon: "bag-handle-outline",
+      path: "/parts/orders",
       badge: null,
     },
     {

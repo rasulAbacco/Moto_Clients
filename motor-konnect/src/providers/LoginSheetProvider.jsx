@@ -100,7 +100,7 @@ function Field({
           fieldStyles.inputRow,
           {
             backgroundColor:
-              theme.colors.card || theme.colors.surface || "#f9f9f9",
+              theme.colors.card || theme.colors.surface || "#F6F7F9",
             borderColor: theme.colors.border,
           },
         ]}
@@ -243,7 +243,9 @@ export function LoginSheetProvider({ children }) {
       setResendTimer(30);
     } catch (err) {
       console.log("Send OTP Error:", err?.response?.data || err);
-      alert("Failed to send OTP. Please try again.");
+      alert(
+        err?.response?.data?.message || "Failed to send OTP. Please try again.",
+      );
     } finally {
       setLoading(false);
     }

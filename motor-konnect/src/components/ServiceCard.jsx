@@ -15,7 +15,7 @@ import useAppStore from "../store/useAppStore";
 import { getServicePrice } from "../utils/pricing";
 import { useAddToCart } from "../hooks/useAddToCart";
 
-const PRIMARY_BLUE = "#007AFF";
+const PRIMARY_BLUE = "#1E3A5F";
 
 /**
  * @param {object} item - a flattened row from search.service.js
@@ -81,7 +81,7 @@ export default function ServiceCard({ item, garage }) {
             resizeMode="cover"
           />
         ) : (
-          <Ionicons name="construct-outline" size={26} color="#B0B0B8" />
+          <Ionicons name="construct-outline" size={26} color="#8A919C" />
         )}
 
         {item.garageVerified && (
@@ -98,14 +98,14 @@ export default function ServiceCard({ item, garage }) {
         </Text>
 
         <View style={styles.garageLine}>
-          <Ionicons name="storefront-outline" size={10} color="#8E8E93" />
+          <Ionicons name="storefront-outline" size={10} color="#8A919C" />
           <Text style={styles.garageName} numberOfLines={1}>
             {item.garageName ?? "Unknown Garage"}
           </Text>
         </View>
 
         <View style={styles.ratingRow}>
-          <Ionicons name="star" size={11} color="#FFB800" />
+          <Ionicons name="star" size={11} color="#B8862B" />
           <Text style={styles.rating}>
             {Number(item.garageRating ?? 4.5).toFixed(1)}
           </Text>
@@ -138,13 +138,13 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#E3E6EB",
   },
   imageWrap: {
     width: "100%",
     height: 90,
     borderRadius: 12,
-    backgroundColor: "#F5F6FA",
+    backgroundColor: "#F6F7F9",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: "#1A1D23",
     minHeight: 34, // keeps 2-line names aligned across the row
   },
   garageLine: {
@@ -177,14 +177,14 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 6,
   },
-  garageName: { fontSize: 11, color: "#8E8E93", fontWeight: "500", flex: 1 },
+  garageName: { fontSize: 11, color: "#8A919C", fontWeight: "500", flex: 1 },
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
     marginTop: 3,
   },
-  rating: { fontSize: 11, color: "#1a1a1a", fontWeight: "600" },
+  rating: { fontSize: 11, color: "#1A1D23", fontWeight: "600" },
   priceRow: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   price: { fontSize: 15, fontWeight: "800", color: PRIMARY_BLUE },
   originalPrice: {
     fontSize: 11,
-    color: "#B0B0B8",
+    color: "#8A919C",
     textDecorationLine: "line-through",
   },
   addBtn: {
@@ -206,6 +206,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  addedBtn: { backgroundColor: "#22C55E" },
+  addedBtn: { backgroundColor: "#2E7D5B" },
   addBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 });

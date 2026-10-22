@@ -49,7 +49,7 @@ export default function OfferBanner() {
 
   return (
     <LinearGradient
-      colors={["#f59e0b", "#ef4444"]}
+      colors={["#B8862B", "#B3261E"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -61,7 +61,7 @@ export default function OfferBanner() {
       {/* Top row */}
       <View style={styles.topRow}>
         <View style={styles.flashWrap}>
-          <Ionicons name="flash" size={14} color="#f59e0b" />
+          <Ionicons name="flash" size={14} color="#B8862B" />
           <Text style={styles.flashText}>FLASH SALE</Text>
         </View>
         <TouchableOpacity
@@ -70,7 +70,7 @@ export default function OfferBanner() {
           activeOpacity={0.85}
         >
           <Text style={styles.shopText}>Shop Now</Text>
-          <Ionicons name="arrow-forward" size={12} color="#ef4444" />
+          <Ionicons name="arrow-forward" size={12} color="#B3261E" />
         </TouchableOpacity>
       </View>
 
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     marginBottom: 24,
     overflow: "hidden",
-    shadowColor: "#f59e0b",
+    shadowColor: "#B8862B",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   shopText: {
-    color: "#ef4444",
+    color: "#B3261E",
     fontWeight: "700",
     fontSize: 12,
   },

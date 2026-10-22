@@ -8,6 +8,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../hooks/useTheme";
+import { safeBack } from "../../utils/navigation";
 
 const HEADER_MAX_HEIGHT = 110;
 const HEADER_MIN_HEIGHT = 60;
@@ -45,7 +46,7 @@ export default function CollapsibleHeader({ title, scrollY }) {
       ]}
     >
       <View style={styles.topRow}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => safeBack(router)}>
           <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
       </View>

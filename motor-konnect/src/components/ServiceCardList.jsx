@@ -70,11 +70,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: "#1A1D23",
     marginBottom: 14,
     letterSpacing: -0.5,
   },
   columnWrapper: { justifyContent: "space-between" },
   center: { padding: 30, alignItems: "center" },
-  loaderText: { color: "#8E8E93", fontSize: 13, fontWeight: "500" },
+  loaderText: { color: "#8A919C", fontSize: 13, fontWeight: "500" },
 });

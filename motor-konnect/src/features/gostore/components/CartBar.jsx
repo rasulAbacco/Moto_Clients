@@ -24,7 +24,7 @@ export default function CartBar() {
       style={[styles.wrapper, { bottom: Platform.OS === "ios" ? 100 : 86 }]}
     >
       <LinearGradient
-        colors={["#111827", "#1f2937"]}
+        colors={["#14243B", "#1E3A5F"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.bar}
@@ -56,7 +56,7 @@ export default function CartBar() {
           activeOpacity={0.88}
         >
           <Text style={styles.ctaText}>View Cart</Text>
-          <Ionicons name="arrow-forward" size={14} color="#111827" />
+          <Ionicons name="arrow-forward" size={14} color="#14243B" />
         </TouchableOpacity>
       </LinearGradient>
     </View>
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -4,
     right: -4,
-    backgroundColor: "#ef4444",
+    backgroundColor: "#B3261E",
     minWidth: 16,
     height: 16,
     borderRadius: 8,
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: "#1f2937",
+    borderColor: "#1E3A5F",
   },
   countBadgeText: {
     color: "#fff",
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   ctaText: {
-    color: "#111827",
+    color: "#14243B",
     fontWeight: "700",
     fontSize: 13,
   },

@@ -13,12 +13,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useTheme } from "../src/hooks/useTheme";
+import ScreenHeader from "../src/components/common/ScreenHeader";
 
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
 
 export default function ServiceGarageScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const c = theme.colors;
   const [garages, setGarages] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +37,8 @@ export default function ServiceGarageScreen() {
 
       const res = await axios.get(url, {
         headers: {
-          "x-api-key": process.env.EXPO_PUBLIC_API_KEY || "your_super_secret_key_here",
+          "x-api-key":
+            process.env.EXPO_PUBLIC_API_KEY || "your_super_secret_key_here",
         },
         timeout: 10000,
       });
@@ -66,7 +71,11 @@ export default function ServiceGarageScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        activeOpacity={0.7}
+        style={[
+          styles.card,
+          { backgroundColor: c.surface, borderColor: c.border },
+        ]}
         onPress={() =>
           router.push({
             pathname: "/service-confirm",
@@ -77,31 +86,48 @@ export default function ServiceGarageScreen() {
           })
         }
       >
+        <View style={[styles.avatar, { backgroundColor: c.primaryLight }]}>
+          <Ionicons name="business-outline" size={20} color={c.primary} />
+        </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>
+          <Text style={[styles.name, { color: c.text }]}>
             {item.companyName || item.name || "Garage"}
           </Text>
-          <Text style={styles.meta}>{item.address || "No address"}</Text>
+          <Text
+            style={[styles.meta, { color: c.textSecondary }]}
+            numberOfLines={2}
+          >
+            {item.address || "No address"}
+          </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#555" />
+        <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
       </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#0062ff" />
-        <Text style={{ marginTop: 10 }}>Loading garages...</Text>
-      </SafeAreaView>
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <ScreenHeader title="Select Garage" />
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={c.primary} />
+          <Text style={{ marginTop: 10, color: c.textSecondary }}>
+            Loading garages…
+          </Text>
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Select Garage</Text>
-      </View>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: c.background }]}
+      edges={["left", "right", "bottom"]}
+    >
+      <ScreenHeader
+        title="Select Garage"
+        subtitle={garages.length ? `${garages.length} available` : undefined}
+      />
 
       <FlatList
         data={garages}
@@ -117,9 +143,12 @@ export default function ServiceGarageScreen() {
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16 }}
         ListEmptyComponent={
-          <Text style={{ textAlign: "center", marginTop: 20 }}>
-            No garages available
-          </Text>
+          <View style={{ alignItems: "center", marginTop: 48 }}>
+            <Ionicons name="business-outline" size={36} color={c.textMuted} />
+            <Text style={{ marginTop: 10, color: c.textSecondary }}>
+              No garages available right now
+            </Text>
+          </View>
         }
       />
     </SafeAreaView>
@@ -127,19 +156,24 @@ export default function ServiceGarageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { padding: 16, borderBottomWidth: 0.5, borderColor: "#ddd" },
-  title: { fontSize: 18, fontWeight: "700" },
   card: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
     padding: 14,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: "#ddd",
+    borderRadius: 14,
+    borderWidth: 1,
     marginBottom: 12,
   },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   name: { fontSize: 15, fontWeight: "600" },
-  meta: { fontSize: 12, color: "#666", marginTop: 4 },
+  meta: { fontSize: 13, marginTop: 3, lineHeight: 18 },
 });

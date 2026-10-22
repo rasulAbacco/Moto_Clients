@@ -32,14 +32,16 @@ import api from "../../src/services/apiClient";
 import useAppStore from "../../src/store/useAppStore";
 import { useCart } from "../../src/hooks/useCart";
 import { getServicePrice } from "../../src/utils/pricing";
+import { safeBack } from "../../src/utils/navigation";
+import ScreenHeader from "../../src/components/common/ScreenHeader";
 
 const C = {
   bg: "#FFFFFF",
-  pageBg: "#F5F6FA",
-  accent: "#0062ff",
-  text: "#111118",
-  textSub: "#6B6B80",
-  textMuted: "#ABABC0",
+  pageBg: "#F6F7F9",
+  accent: "#1E3A5F",
+  text: "#1A1D23",
+  textSub: "#6B7280",
+  textMuted: "#8A919C",
 };
 
 function ServiceCard({
@@ -290,7 +292,10 @@ export default function ServiceDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centerScreen}>
+      <SafeAreaView
+        edges={["left", "right", "bottom"]}
+        style={styles.centerScreen}
+      >
         <ActivityIndicator size="large" color={C.accent} />
         <Text>Loading...</Text>
       </SafeAreaView>
@@ -299,23 +304,17 @@ export default function ServiceDetailsScreen() {
 
   if (!data)
     return (
-      <SafeAreaView style={styles.centerScreen}>
-        <Text>Service not found</Text>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1 }}>
+        <ScreenHeader title="Service" onBack={() => safeBack(router)} />
+        <View style={styles.centerScreen}>
+          <Text style={{ color: "#6B7280" }}>Service not found</Text>
+        </View>
       </SafeAreaView>
     );
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={C.accent}
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{data.name}</Text>
-      </View>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={styles.screen}>
+      <ScreenHeader title={data.name} onBack={() => safeBack(router)} />
 
       <ScrollView
         style={styles.scrollView}
@@ -387,7 +386,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#E6ECF3",
     padding: 8,
     borderRadius: 8,
     alignSelf: "flex-start",
@@ -405,7 +404,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
-  sectionCount: { fontSize: 12, color: "#666" },
+  sectionCount: { fontSize: 12, color: "#6B7280" },
   card: {
     flexDirection: "row",
     backgroundColor: "#fff",
@@ -421,24 +420,28 @@ const styles = StyleSheet.create({
     gap: 8,
     marginVertical: 4,
   },
-  finalPrice: { fontSize: 16, fontWeight: "700", color: "#006fff" },
-  oldPrice: { textDecorationLine: "line-through", color: "#999", fontSize: 13 },
+  finalPrice: { fontSize: 16, fontWeight: "700", color: "#1E3A5F" },
+  oldPrice: {
+    textDecorationLine: "line-through",
+    color: "#8A919C",
+    fontSize: 13,
+  },
   vehicleTypeTag: {
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#EEF0F3",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  vehicleTypeText: { fontSize: 10, color: "#6b7280", fontWeight: "700" },
+  vehicleTypeText: { fontSize: 10, color: "#6B7280", fontWeight: "700" },
   addBtn: {
     marginTop: 8,
-    backgroundColor: "#0062ff",
+    backgroundColor: "#1E3A5F",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     alignSelf: "flex-start",
   },
-  addedBtn: { backgroundColor: "#ef4444" },
+  addedBtn: { backgroundColor: "#B3261E" },
   addBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   arrowWrap: { justifyContent: "center", paddingLeft: 8 },
   cartBar: {
@@ -446,14 +449,14 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: "#111827",
+    backgroundColor: "#14243B",
     padding: 16,
     borderRadius: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  cartCount: { color: "#9CA3AF", fontSize: 12 },
+  cartCount: { color: "#8A919C", fontSize: 12 },
   cartTotal: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  viewCartText: { color: "#60A5FA", fontWeight: "700" },
+  viewCartText: { color: "#A9BCD3", fontWeight: "700" },
 });

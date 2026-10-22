@@ -6,51 +6,85 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
-const otpStore = new Map();
+const otpStore = new Map(); // kept for backwards compatibility (no longer used)
 
 import { sendOTPEmail } from "../services/emailService.js";
 
-const normalizePhone = (phone) => phone.replace(/\D/g, "");
+const normalizePhone = (phone) => String(phone || "").replace(/\D/g, "");
 const normalizeEmail = (email) => email?.trim().toLowerCase();
 
-// ===================== PHONE OTP =====================
+// 10-digit Indian mobile, from "+91 98450 12345" / "919845012345" / "9845012345"
+const tenDigits = (phone) => normalizePhone(phone).slice(-10);
+const isValidMobile = (ten) => /^[6-9]\d{9}$/.test(ten);
+// Stored format (same as before): 91XXXXXXXXXX
+const toStoredPhone = (ten) => `91${ten}`;
+
+const PHONE_OTP_MINUTES = 10; // matches the DLT SMS text ("valid for 10 minutes")
+
+// ===================== PHONE OTP (Motor Konnect app) =====================
+// OTPs are kept (hashed) in the OTP table instead of server memory, so they
+// survive a server restart / Render sleep between "send" and "verify".
 
 export const sendOtp = async (req, res, next) => {
   try {
-    let { phone } = req.body;
-    if (!phone)
-      return res.status(400).json({ message: "Phone number required" });
-
-    phone = normalizePhone(phone);
-    if (!phone.startsWith("91")) phone = "91" + phone;
+    const ten = tenDigits(req.body?.phone);
+    if (!ten) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Phone number required" });
+    }
+    if (!isValidMobile(ten)) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Enter a valid 10-digit mobile number",
+        });
+    }
+    const phone = toStoredPhone(ten);
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(phone, { otp, expires: Date.now() + 5 * 60 * 1000 });
 
+    // DLT-registered template — must stay word-for-word the same
     const message = `${otp} is your OTP for Abacco Technology CRM login verification. OTP valid for 10 minutes. Do not share this OTP with anyone.`;
-    const smsUrl = "https://www.smsgatewayhub.com/api/mt/SendSMS";
-
-    const params = {
-      APIKey: process.env.SMS_API_KEY,
-      senderid: process.env.SMS_SENDER_ID,
-      channel: 2,
-      DCS: 0,
-      flashsms: 0,
-      number: phone,
-      text: message,
-      route: process.env.SMS_ROUTE,
-      EntityId: process.env.SMS_ENTITY_ID,
-      dlttemplateid: process.env.SMS_TEMPLATE_ID,
-    };
-
-    const { data } = await axios.get(smsUrl, { params });
+    const { data } = await axios.get(
+      "https://www.smsgatewayhub.com/api/mt/SendSMS",
+      {
+        params: {
+          APIKey: process.env.SMS_API_KEY,
+          senderid: process.env.SMS_SENDER_ID,
+          channel: 2,
+          DCS: 0,
+          flashsms: 0,
+          number: phone,
+          text: message,
+          route: process.env.SMS_ROUTE,
+          EntityId: process.env.SMS_ENTITY_ID,
+          dlttemplateid: process.env.SMS_TEMPLATE_ID,
+        },
+        timeout: 15000,
+      },
+    );
 
     if (data?.ErrorCode !== "000") {
-      return res.status(500).json({
+      console.error("SMS gateway error:", data?.ErrorCode, data?.ErrorMessage);
+      return res.status(502).json({
         success: false,
-        message: data?.ErrorMessage || "Failed to send OTP",
+        message:
+          data?.ErrorMessage || "Could not send OTP SMS. Please try again.",
       });
     }
+
+    // Only store the OTP once the SMS actually went out
+    await prisma.oTP.deleteMany({ where: { mobile: phone, verified: false } });
+    await prisma.oTP.create({
+      data: {
+        mobile: phone,
+        otp: await bcrypt.hash(otp, 10),
+        expiresAt: new Date(Date.now() + PHONE_OTP_MINUTES * 60 * 1000),
+        verified: false,
+      },
+    });
 
     res.json({ success: true, message: "OTP sent successfully" });
   } catch (err) {
@@ -61,39 +95,93 @@ export const sendOtp = async (req, res, next) => {
 
 export const verifyOtp = async (req, res, next) => {
   try {
-    let { phone, otp } = req.body;
-    if (!phone || !otp)
-      return res.status(400).json({ message: "Phone and OTP required" });
-
-    phone = normalizePhone(phone);
-    if (!phone.startsWith("91")) phone = "91" + phone;
-
-    const record = otpStore.get(phone);
-    if (!record)
-      return res.status(400).json({ success: false, message: "OTP not found" });
-    if (record.expires < Date.now()) {
-      otpStore.delete(phone);
-      return res.status(400).json({ success: false, message: "OTP expired" });
+    const ten = tenDigits(req.body?.phone);
+    const otp = String(req.body?.otp || "").trim();
+    if (!ten || !otp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Phone and OTP required" });
     }
-    if (record.otp !== otp) {
+    const phone = toStoredPhone(ten);
+
+    const record = await prisma.oTP.findFirst({
+      where: { mobile: phone, verified: false },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!record) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "OTP not found. Please request a new OTP.",
+        });
+    }
+    if (record.expiresAt < new Date()) {
+      await prisma.oTP.delete({ where: { id: record.id } }).catch(() => {});
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "OTP expired. Please request a new OTP.",
+        });
+    }
+    if (!(await bcrypt.compare(otp, record.otp))) {
       return res.status(400).json({ success: false, message: "Invalid OTP" });
     }
+    await prisma.oTP.update({
+      where: { id: record.id },
+      data: { verified: true },
+    });
 
-    otpStore.delete(phone);
+    // Optional details from the app's login form
+    const name = String(req.body?.name || req.body?.fullName || "").trim();
+    const email = normalizeEmail(req.body?.email || "");
+    const emailOk = !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    let user = await prisma.user.findUnique({ where: { phone } });
+    // Existing user? Phone may be stored as 91XXXXXXXXXX or as the 10 digits
+    let user = await prisma.user.findFirst({
+      where: { phone: { in: [phone, ten, `+91${ten}`] } },
+    });
     let isNewUser = false;
 
+    // Only use the email if no other account already has it
+    const emailFree = async (exceptId) =>
+      emailOk &&
+      !(await prisma.user.findFirst({
+        where: { email, ...(exceptId && { id: { not: exceptId } }) },
+        select: { id: true },
+      }));
+
     if (!user) {
-      // Brand new phone signup — no name yet, frontend will ask for it
       user = await prisma.user.create({
         data: {
           phone,
+          fullName: name || null,
+          email: (await emailFree()) ? email : null, // email is optional
           role: "BUYER",
           isVerified: true,
         },
       });
       isNewUser = true;
+    } else {
+      if (user.isBlocked) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Your account has been blocked." });
+      }
+      if (!user.isActive) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Your account is inactive." });
+      }
+      // Fill in blanks only — never overwrite what the user already has
+      const updateData = { isVerified: true };
+      if (name && !user.fullName?.trim()) updateData.fullName = name;
+      if (!user.email && (await emailFree(user.id))) updateData.email = email;
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
     }
 
     const needsFullName = !user.fullName?.trim();
@@ -116,6 +204,26 @@ export const verifyOtp = async (req, res, next) => {
     console.error("Verify OTP Error:", err);
     next(err);
   }
+};
+
+// ===================== LOGIN ROUTES (/auth/send-otp, /auth/verify-otp) =====================
+// The Motor Konnect app logs in with PHONE (email is optional).
+// Requests that send only an email (no phone) still get the email OTP flow.
+
+export const sendLoginOtp = (req, res, next) => {
+  if (req.body?.phone) return sendOtp(req, res, next);
+  if (req.body?.email) return sendEmailOTP(req, res);
+  return res
+    .status(400)
+    .json({ success: false, message: "Phone number required" });
+};
+
+export const verifyLoginOtp = (req, res, next) => {
+  if (req.body?.phone) return verifyOtp(req, res, next);
+  if (req.body?.email) return verifyEmailOTP(req, res);
+  return res
+    .status(400)
+    .json({ success: false, message: "Phone and OTP required" });
 };
 
 export { otpStore };

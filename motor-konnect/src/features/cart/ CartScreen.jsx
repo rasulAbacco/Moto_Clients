@@ -16,6 +16,8 @@ import { useTheme } from "../../hooks/useTheme";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../providers/AuthProvider";
 import { useLoginSheet } from "../../providers/LoginSheetProvider";
+import { safeBack } from "../../utils/navigation";
+import ScreenHeader from "../../components/common/ScreenHeader";
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 function EmptyCart({ theme, router }) {
@@ -130,7 +132,7 @@ function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
               marginTop: 2,
             }}
           >
-            🏪 {item.garageName}
+            {item.garageName}
           </Text>
         )}
 
@@ -168,7 +170,7 @@ function CartItem({ item, theme, addToCart, removeFromCart, onDelete }) {
         style={itemStyles.deleteBtn}
         onPress={() => onDelete(item.id)}
       >
-        <Ionicons name="trash-outline" size={16} color="#ef4444" />
+        <Ionicons name="trash-outline" size={16} color="#B3261E" />
       </TouchableOpacity>
     </View>
   );
@@ -278,23 +280,19 @@ export default function CartScreen() {
   };
 
   const renderHeader = () => (
-    <View
-      style={[styles.pageHeader, { borderBottomColor: theme.colors.border }]}
-    >
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-        <Ionicons name="arrow-back" size={22} color={theme.colors.primary} />
-      </TouchableOpacity>
-      <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-        My Cart
-      </Text>
-      {cartItems.length > 0 ? (
-        <TouchableOpacity onPress={clearCart}>
-          <Text style={{ color: "#ef4444", fontWeight: "600" }}>Clear</Text>
-        </TouchableOpacity>
-      ) : (
-        <View style={{ width: 40 }} />
-      )}
-    </View>
+    <ScreenHeader
+      title="My Cart"
+      onBack={() => safeBack(router)}
+      right={
+        cartItems.length > 0 ? (
+          <TouchableOpacity onPress={clearCart} hitSlop={10}>
+            <Text style={{ color: theme.colors.danger, fontWeight: "600" }}>
+              Clear
+            </Text>
+          </TouchableOpacity>
+        ) : null
+      }
+    />
   );
 
   const renderFooter = () => {
@@ -305,18 +303,18 @@ export default function CartScreen() {
           <View
             style={[
               styles.nudgeBanner,
-              { backgroundColor: deliveryFee > 0 ? "#fef3c7" : "#dcfce7" },
+              { backgroundColor: deliveryFee > 0 ? "#F7F0E1" : "#E7F2EC" },
             ]}
           >
             <Ionicons
               name={deliveryFee > 0 ? "bicycle-outline" : "checkmark-circle"}
               size={16}
-              color={deliveryFee > 0 ? "#d97706" : "#16a34a"}
+              color={deliveryFee > 0 ? "#B8862B" : "#2E7D5B"}
             />
             <Text style={styles.nudgeText}>
               {deliveryFee > 0
                 ? `Add ₹${500 - total} for FREE delivery`
-                : "🎉 Free delivery unlocked!"}
+                : "Free delivery unlocked"}
             </Text>
           </View>
         )}
@@ -373,12 +371,12 @@ export default function CartScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
+      {renderHeader()}
       <FlatList
         data={cartItems}
         keyExtractor={(item) => String(item.id)}
-        ListHeaderComponent={renderHeader}
         ListEmptyComponent={<EmptyCart theme={theme} router={router} />}
         renderItem={({ item }) => (
           <CartItem
@@ -423,7 +421,7 @@ const styles = StyleSheet.create({
   },
   divider: { height: 0.5, marginVertical: 2 },
   totalLabel: { fontSize: 15, fontWeight: "700" },
-  totalValue: { fontSize: 20, fontWeight: "800", color: "#0062ff" },
+  totalValue: { fontSize: 20, fontWeight: "800", color: "#1E3A5F" },
   checkoutBtn: {
     flexDirection: "row",
     alignItems: "center",

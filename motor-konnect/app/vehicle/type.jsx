@@ -14,6 +14,8 @@ import { useNavigation } from "@react-navigation/native";
 // 2. Import useSafeAreaInsets for precise positioning
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { safeBack } from "../../src/utils/navigation";
+import ScreenHeader from "../../src/components/common/ScreenHeader";
 
 const VEHICLES = [
   {
@@ -22,9 +24,9 @@ const VEHICLES = [
     subtitle: "Sedan, SUV, Hatchback & more",
     icon: "car-outline",
     iconSelected: "car",
-    accent: "#2563EB",
-    lightBg: "#EFF6FF",
-    border: "#BFDBFE",
+    accent: "#1E3A5F",
+    lightBg: "#E6ECF3",
+    border: "#E6ECF3",
     badge: "Popular",
   },
   {
@@ -33,9 +35,9 @@ const VEHICLES = [
     subtitle: "Motorcycle, Scooter & more",
     icon: "bicycle-outline",
     iconSelected: "bicycle",
-    accent: "#EA580C",
-    lightBg: "#FFF7ED",
-    border: "#FED7AA",
+    accent: "#1E3A5F",
+    lightBg: "#E6ECF3",
+    border: "#E6ECF3",
     badge: "Efficient",
   },
 ];
@@ -54,25 +56,15 @@ export default function VehicleTypeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F2F3F7" />
-
-      {/* 4. Conditionally render Back Button with Safe Positioning */}
-      {navigation.canGoBack() && (
-        <TouchableOpacity
-          style={[
-            styles.backButton,
-            { top: insets.top + 10 }, // Pushes it down safely below the notch
-          ]}
-          onPress={() => router.back()}
-        >
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={24}
-            color="#374151"
-          />
-        </TouchableOpacity>
-      )}
+    <View style={styles.safe}>
+      {/* First onboarding step: back only shows when there is somewhere to go */}
+      <ScreenHeader
+        title=""
+        transparent
+        border={false}
+        showBack={navigation.canGoBack()}
+        onBack={() => safeBack(router, "/(tabs)/home")}
+      />
 
       <View style={styles.container}>
         {/* Step Tracker */}
@@ -133,7 +125,7 @@ export default function VehicleTypeScreen() {
                     styles.iconBox,
                     {
                       backgroundColor: isSel ? v.border + "88" : v.lightBg,
-                      borderColor: isSel ? v.border : "#EAEBF0",
+                      borderColor: isSel ? v.border : "#E3E6EB",
                     },
                   ]}
                 >
@@ -172,7 +164,7 @@ export default function VehicleTypeScreen() {
                   <Ionicons
                     name={isSel ? "checkmark-circle" : "chevron-forward"}
                     size={22}
-                    color={isSel ? v.accent : "#D1D5DB"}
+                    color={isSel ? v.accent : "#C9CED6"}
                   />
                 </View>
               </TouchableOpacity>
@@ -204,25 +196,26 @@ export default function VehicleTypeScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Ionicons name="lock-closed-outline" size={12} color="#C4C4CC" />
+          <Ionicons name="lock-closed-outline" size={12} color="#C9CED6" />
           <Text style={styles.footerText}>
             Your data is encrypted and secure
           </Text>
         </View>
       </View>
-    </SafeAreaView>
+      <View style={{ height: insets.bottom }} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F2F3F7",
+    backgroundColor: "#EEF0F3",
   },
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 16 : 16,
+    paddingTop: 8,
     paddingBottom: 32,
     justifyContent: "center",
   },
@@ -245,7 +238,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E3E6EB",
   },
 
   // Step tracker
@@ -261,17 +254,17 @@ const styles = StyleSheet.create({
   },
   pipActive: {
     width: 28,
-    backgroundColor: "#0A0A14",
+    backgroundColor: "#14243B",
   },
   pipInactive: {
     width: 12,
-    backgroundColor: "#D1D5DB",
+    backgroundColor: "#C9CED6",
   },
   stepLabel: {
     marginLeft: 6,
     fontSize: 12,
     fontWeight: "600",
-    color: "#9CA3AF",
+    color: "#8A919C",
     letterSpacing: 0.4,
   },
 
@@ -286,7 +279,7 @@ const styles = StyleSheet.create({
   eyebrowDash: {
     width: 22,
     height: 2.5,
-    backgroundColor: "#0A0A14",
+    backgroundColor: "#14243B",
     borderRadius: 2,
   },
   eyebrowText: {
@@ -298,17 +291,17 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 38,
     fontWeight: "800",
-    color: "#0A0A14",
+    color: "#14243B",
     lineHeight: 44,
     letterSpacing: -1,
     marginBottom: 12,
   },
   headingAccent: {
-    color: "#2563EB",
+    color: "#1E3A5F",
   },
   subText: {
     fontSize: 14,
-    color: "#9CA3AF",
+    color: "#8A919C",
     lineHeight: 22,
     fontWeight: "400",
   },
@@ -319,7 +312,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: "#EAEBF0",
+    borderColor: "#E3E6EB",
     padding: 18,
     flexDirection: "row",
     alignItems: "center",
@@ -353,7 +346,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0A0A14",
+    color: "#14243B",
     letterSpacing: -0.5,
   },
   badge: {
@@ -370,14 +363,14 @@ const styles = StyleSheet.create({
   },
   cardSub: {
     fontSize: 12.5,
-    color: "#9CA3AF",
+    color: "#8A919C",
     fontWeight: "400",
   },
   indicator: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#EEF0F3",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -385,7 +378,7 @@ const styles = StyleSheet.create({
 
   // Button
   btn: {
-    backgroundColor: "#0A0A14",
+    backgroundColor: "#14243B",
     borderRadius: 16,
     padding: 17,
     flexDirection: "row",
@@ -393,7 +386,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...Platform.select({
       ios: {
-        shadowColor: "#0A0A14",
+        shadowColor: "#14243B",
         shadowOpacity: 0.25,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },
@@ -402,7 +395,7 @@ const styles = StyleSheet.create({
     }),
   },
   btnDisabled: {
-    backgroundColor: "#EAEBF0",
+    backgroundColor: "#E3E6EB",
     elevation: 0,
     shadowOpacity: 0,
   },
@@ -412,7 +405,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.3,
   },
-  btnTextDisabled: { color: "#ACACBC" },
+  btnTextDisabled: { color: "#8A919C" },
 
   // Footer
   footer: {
@@ -424,7 +417,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: "#C4C4CC",
+    color: "#C9CED6",
     fontWeight: "500",
   },
 });

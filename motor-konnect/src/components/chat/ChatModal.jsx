@@ -31,18 +31,18 @@ Interaction: Handle typos (servis -> service). Be concise. Use **bold** for emph
 `;
 
 const BRAND = {
-  bg: "#0A0A0F",
-  surface: "#13131A",
-  card: "#1C1C27",
-  border: "#2A2A3D",
-  accent: "#E85D04",
-  accentSoft: "#FF7A2F",
-  accentGlow: "rgba(232, 93, 4, 0.15)",
-  text: "#F0F0F5",
-  textMuted: "#8888A8",
-  botBubble: "#1C1C27",
-  userBubble: "#E85D04",
-  green: "#22C55E",
+  bg: "#F6F7F9",
+  surface: "#FFFFFF",
+  card: "#FFFFFF",
+  border: "#E3E6EB",
+  accent: "#1E3A5F",
+  accentSoft: "#E6ECF3",
+  accentGlow: "rgba(30,58,95, 0.08)",
+  text: "#1A1D23",
+  textMuted: "#6B7280",
+  botBubble: "#FFFFFF",
+  userBubble: "#1E3A5F",
+  green: "#2E7D5B",
 };
 
 const QUICK_QUESTIONS = [
@@ -159,7 +159,7 @@ function MessageBubble({ item, isNew }) {
               key={i}
               style={{
                 fontWeight: "700",
-                color: item.bot ? BRAND.accentSoft : "#FFD580",
+                color: item.bot ? BRAND.accent : "#FFFFFF",
               }}
             >
               {p}
@@ -201,7 +201,7 @@ export default function ChatModal({ visible, onClose }) {
   const [messages, setMessages] = useState([
     {
       id: "1",
-      text: "👋 Welcome to **Motor Konnect**! How can I help with your car or bike today?",
+      text: "Welcome to **Motor Konnect**. How can I help with your car or bike today?",
       bot: true,
       time: now(),
     },
@@ -249,7 +249,7 @@ export default function ChatModal({ visible, onClose }) {
   const callGeminiAPI = async (userText) => {
     try {
       // Direct Fetch call to bypass library version issues
-const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;  
+      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
   msgText: { fontSize: 14, lineHeight: 20 },
   timestamp: {
     fontSize: 10,
-    color: "rgba(255,255,255,0.35)",
+    color: "#8A919C",
     marginTop: 5,
     textAlign: "right",
   },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BRAND.accent,
   },
-  quickChipText: { fontSize: 13, fontWeight: "600", color: BRAND.accentSoft },
+  quickChipText: { fontSize: 13, fontWeight: "600", color: BRAND.accent },
   inputRow: {
     flexDirection: "row",
     padding: 12,

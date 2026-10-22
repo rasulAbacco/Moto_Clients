@@ -13,6 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { useTheme } from "../../hooks/useTheme";
 import api from "../../services/apiClient";
+import { safeBack } from "../../utils/navigation";
+import ScreenHeader from "../../components/common/ScreenHeader";
 
 const InfoRow = ({ icon, label, value, theme }) => (
   <View style={[styles.infoRow, { borderBottomColor: theme.colors.border }]}>
@@ -61,7 +63,7 @@ export default function VehicleDetailScreen() {
     return (
       <SafeAreaView
         style={{ flex: 1, backgroundColor: theme.colors.background }}
-        edges={["top"]}
+        edges={["left", "right"]}
       >
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -74,7 +76,7 @@ export default function VehicleDetailScreen() {
     return (
       <SafeAreaView
         style={{ flex: 1, backgroundColor: theme.colors.background }}
-        edges={["top"]}
+        edges={["left", "right"]}
       >
         <View style={styles.centered}>
           <Ionicons
@@ -93,31 +95,10 @@ export default function VehicleDetailScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={theme.colors.primary}
-          />
-          {Platform.OS === "ios" && (
-            <Text style={[styles.backLabel, { color: theme.colors.primary }]}>
-              Back
-            </Text>
-          )}
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Vehicle Details
-        </Text>
-        <View style={{ minWidth: 60 }} />
-      </View>
+      <ScreenHeader title="Vehicle Details" onBack={() => safeBack(router)} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -148,8 +129,11 @@ export default function VehicleDetailScreen() {
           <Text style={[styles.heroName, { color: theme.colors.text }]}>
             {vehicle.brand?.name} {vehicle.model?.name}
           </Text>
-          <Text style={[styles.heroYear, { color: theme.colors.textSecondary }]}>
-            {vehicle.modelYear?.year || "—"} · {vehicle.vehicleType?.name || "—"}
+          <Text
+            style={[styles.heroYear, { color: theme.colors.textSecondary }]}
+          >
+            {vehicle.modelYear?.year || "—"} ·{" "}
+            {vehicle.vehicleType?.name || "—"}
           </Text>
           {vehicle.registration && (
             <View
@@ -326,7 +310,12 @@ const styles = StyleSheet.create({
   backLabel: { fontSize: 16, marginLeft: 2 },
   headerTitle: { fontSize: 17, fontWeight: "700" },
 
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
   errorText: { fontSize: 16, fontWeight: "600" },
 
   scroll: { padding: 16, paddingBottom: 48 },

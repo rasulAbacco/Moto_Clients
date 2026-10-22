@@ -15,6 +15,8 @@ import { useState } from "react";
 import { useCart } from "../../hooks/useCart";
 import { useTheme } from "../../hooks/useTheme";
 import { useRouter } from "expo-router";
+import { safeBack } from "../../utils/navigation";
+import ScreenHeader from "../../components/common/ScreenHeader";
 
 const PAYMENT_METHODS = [
   {
@@ -102,7 +104,7 @@ export default function CheckoutScreen() {
     if (cartType === "service") {
       clearCart();
       Alert.alert(
-        "Booking Confirmed 🚗",
+        "Booking Confirmed",
         "Your service request has been sent to the garage. You can pay directly at the garage.",
         [
           {
@@ -118,31 +120,10 @@ export default function CheckoutScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={theme.colors.primary}
-          />
-          {Platform.OS === "ios" && (
-            <Text style={[styles.backLabel, { color: theme.colors.primary }]}>
-              Back
-            </Text>
-          )}
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Checkout
-        </Text>
-        <View style={{ minWidth: 60 }} />
-      </View>
+      <ScreenHeader title="Checkout" onBack={() => safeBack(router)} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -536,7 +517,7 @@ const styles = StyleSheet.create({
   },
   priceLabel: { fontSize: 13 },
   priceVal: { fontSize: 13, fontWeight: "600" },
-  freeText: { color: "#16a34a", fontSize: 12, fontWeight: "800" },
+  freeText: { color: "#2E7D5B", fontSize: 12, fontWeight: "800" },
   priceDivider: { height: 0.5, marginHorizontal: 14 },
   totalLabel: { fontSize: 15, fontWeight: "700" },
   totalVal: { fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },

@@ -11,6 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/hooks/useTheme";
 import { useRouter } from "expo-router";
+import { safeBack } from "../../src/utils/navigation";
+import ScreenHeader from "../../src/components/common/ScreenHeader";
 
 const termsData = [
   {
@@ -106,7 +108,7 @@ export default function TermsPage() {
       "No 12, 13 & 12/A, Kirthan Arcade, Aditya Nagar, Bangalore 560097";
 
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      address
+      address,
     )}`;
 
     Linking.openURL(url).catch(() => {});
@@ -125,24 +127,13 @@ export default function TermsPage() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
       {/* HEADER */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={theme.colors.primary}
-          />
-        </TouchableOpacity>
-
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Terms & Conditions
-        </Text>
-
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader
+        title="Terms & Conditions"
+        onBack={() => safeBack(router)}
+      />
 
       <ScrollView contentContainerStyle={styles.container}>
         {termsData.map((section, index) => {
@@ -163,17 +154,12 @@ export default function TermsPage() {
               {/* SECTION HEADER */}
               <View style={styles.sectionHeader}>
                 <Ionicons
-                  name={
-                    isContact ? "call-outline" : "document-text-outline"
-                  }
+                  name={isContact ? "call-outline" : "document-text-outline"}
                   size={16}
                   color={theme.colors.primary}
                 />
                 <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: theme.colors.text },
-                  ]}
+                  style={[styles.sectionTitle, { color: theme.colors.text }]}
                 >
                   {section.title}
                 </Text>

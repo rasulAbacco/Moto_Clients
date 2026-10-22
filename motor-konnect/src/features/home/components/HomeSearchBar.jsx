@@ -15,9 +15,9 @@ export default function HomeSearchBar({ value, onChangeText, onClear }) {
 
   // Classic high-contrast color palette
   const inputBg = isDark ? "#1c1c1e" : "#FFFFFF";
-  const borderColor = isDark ? "#2c2c2e" : "#F0F0F0";
+  const borderColor = isDark ? "#2c2c2e" : "#E3E6EB";
   const textColor = theme.colors.text;
-  const placeholderColor = isDark ? "#636366" : "#A0A0A0";
+  const placeholderColor = isDark ? "#636366" : "#8A919C";
 
   return (
     <View

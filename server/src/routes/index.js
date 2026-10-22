@@ -4,10 +4,10 @@ import userRoutes from "./user.routes.js";
 import serviceRoutes from "./service.routes.js";
 import vehicleRoutes from "./vehicle.routes.js";
 import marketplaceRoutes from "./marketplace.routes.js";
-import externalProxyRoutes from "./externalProxyRoutes.js"
+import externalProxyRoutes from "./externalProxyRoutes.js";
 import packageRoutes from "./package.routes.js";
-import notificationRoutes from "./notification.routes.js";   // ← NEW
-
+import notificationRoutes from "./notification.routes.js"; // ← NEW
+import sparePartsRoutes from "./sparePartsRoutes.js";
 
 const router = express.Router();
 
@@ -19,4 +19,5 @@ router.use("/marketplace", marketplaceRoutes);
 router.use("/v1", externalProxyRoutes);
 router.use("/packages", packageRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/spare-parts", sparePartsRoutes);
 export default router;

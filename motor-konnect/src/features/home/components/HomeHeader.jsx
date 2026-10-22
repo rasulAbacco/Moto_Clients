@@ -27,7 +27,7 @@ export default function HomeHeader() {
     useCallback(() => {
       fetchLiveLocation();
       loadVehicle();
-    }, [user])
+    }, [user]),
   );
 
   const fetchLiveLocation = async () => {
@@ -126,10 +126,10 @@ export default function HomeHeader() {
 
   const isDark = theme.dark;
   const surface = isDark ? "#1c1c1e" : "#ffffff";
-  const border = isDark ? "#3a3a3c" : "#e8e8e8";
-  const textPrimary = isDark ? "#f5f5f5" : "#111111";
-  const textSecondary = isDark ? "#8e8e93" : "#6b6b6b";
-  const imageBg = isDark ? "#2a2a2c" : "#f2f2f7";
+  const border = isDark ? "#3a3a3c" : "#E3E6EB";
+  const textPrimary = isDark ? "#F6F7F9" : "#1A1D23";
+  const textSecondary = isDark ? "#8A919C" : "#6B7280";
+  const imageBg = isDark ? "#2a2a2c" : "#EEF0F3";
   const accent = theme.colors.primary;
 
   return (
@@ -207,7 +207,10 @@ export default function HomeHeader() {
 
             {vehicle.model?.segment ? (
               <View
-                style={[styles.segmentBadge, { backgroundColor: accent + "15" }]}
+                style={[
+                  styles.segmentBadge,
+                  { backgroundColor: accent + "15" },
+                ]}
               >
                 <Text style={[styles.segmentText, { color: accent }]}>
                   {vehicle.model.segment.replace("_", " ")}

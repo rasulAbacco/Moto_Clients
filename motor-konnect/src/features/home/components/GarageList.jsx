@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import useAppStore from "../../../store/useAppStore";
 import { getLowestPriceForGarage } from "../../../utils/pricing";
 
-const PRIMARY_BLUE = "#007AFF";
+const PRIMARY_BLUE = "#1E3A5F";
 
 export default function GarageList({ garages, loading }) {
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function GarageList({ garages, loading }) {
             <Text style={styles.verifiedText}>PRO</Text>
           </View>
           <View style={styles.ratingGroup}>
-            <Ionicons name="star" size={10} color="#FFB800" />
+            <Ionicons name="star" size={10} color="#B8862B" />
             <Text style={styles.ratingText}>
               {Number(item.avgRating || 4.5).toFixed(1)}
             </Text>
@@ -68,7 +68,7 @@ export default function GarageList({ garages, loading }) {
             {item.companyName || item.name}
           </Text>
           <View style={styles.locationContainer}>
-            <Ionicons name="location" size={10} color="#8E8E93" />
+            <Ionicons name="location" size={10} color="#8A919C" />
             <Text style={styles.address} numberOfLines={1}>
               {item.address || "Main Workshop"}
             </Text>
@@ -116,14 +116,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: "#1A1D23",
     marginBottom: 16,
     letterSpacing: -0.5,
   },
   columnWrapper: { justifyContent: "space-between" },
   listContainer: { paddingBottom: 10 },
   center: { padding: 40, alignItems: "center" },
-  loaderText: { color: "#8E8E93", fontSize: 13, fontWeight: "500" },
+  loaderText: { color: "#8A919C", fontSize: 13, fontWeight: "500" },
   card: {
     width: "48%",
     backgroundColor: "#FFFFFF",
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#E3E6EB",
     justifyContent: "space-between",
     minHeight: 175,
     ...Platform.select({
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EBF5FF",
+    backgroundColor: "#E6ECF3",
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
@@ -160,12 +160,12 @@ const styles = StyleSheet.create({
   },
   verifiedText: { fontSize: 9, fontWeight: "800", color: PRIMARY_BLUE },
   ratingGroup: { flexDirection: "row", alignItems: "center", gap: 2 },
-  ratingText: { fontSize: 11, fontWeight: "700", color: "#1A1A1A" },
+  ratingText: { fontSize: 11, fontWeight: "700", color: "#1A1D23" },
   cardBody: { marginTop: 10, marginBottom: 6 },
   name: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: "#1A1D23",
     letterSpacing: -0.4,
   },
   locationContainer: {
@@ -174,11 +174,11 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 2,
   },
-  address: { fontSize: 11, color: "#8E8E93", fontWeight: "500", flex: 1 },
+  address: { fontSize: 11, color: "#8A919C", fontWeight: "500", flex: 1 },
   vehicleTypeTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#EEF0F3",
     alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -198,12 +198,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#F8F9FA",
+    borderTopColor: "#F6F7F9",
   },
   priceLabel: {
     fontSize: 8,
     fontWeight: "700",
-    color: "#8E8E93",
+    color: "#8A919C",
     letterSpacing: 0.3,
     marginBottom: 2,
   },

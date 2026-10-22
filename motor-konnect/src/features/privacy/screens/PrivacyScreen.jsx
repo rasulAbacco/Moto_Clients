@@ -12,6 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import { useRouter } from "expo-router";
 import privacyData from "../data/privacyData";
+import { safeBack } from "../../../utils/navigation";
+import ScreenHeader from "../../../components/common/ScreenHeader";
 
 export default function PrivacyScreen() {
   const { theme } = useTheme();
@@ -27,7 +29,7 @@ export default function PrivacyScreen() {
       "No 12, 13 & 12/A, Kirthan Arcade, Aditya Nagar, Bangalore 560097";
 
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      address
+      address,
     )}`;
 
     Linking.openURL(url).catch(() => {});
@@ -47,24 +49,10 @@ export default function PrivacyScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      edges={["top"]}
+      edges={["left", "right"]}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons
-            name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
-            size={22}
-            color={theme.colors.primary}
-          />
-        </TouchableOpacity>
-
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Privacy Policy
-        </Text>
-
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title="Privacy Policy" onBack={() => safeBack(router)} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -88,9 +76,7 @@ export default function PrivacyScreen() {
               {/* Section Title */}
               <View style={styles.sectionHeader}>
                 <Ionicons
-                  name={
-                    isContact ? "call-outline" : "document-text-outline"
-                  }
+                  name={isContact ? "call-outline" : "document-text-outline"}
                   size={16}
                   color={theme.colors.primary}
                   style={{ marginRight: 6, marginTop: 2 }}
