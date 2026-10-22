@@ -24,6 +24,11 @@ export const updateUser = async (req, res, next) => {
       data: user,
     });
   } catch (err) {
+    if (err?.status && err.name !== "PrismaClientKnownRequestError") {
+      return res
+        .status(err.status)
+        .json({ success: false, message: err.message });
+    }
     next(err);
   }
 };

@@ -19,18 +19,20 @@ import { useTheme } from "../../hooks/useTheme";
 import AppButton from "../../components/ui/AppButton";
 import { useLoginSheet } from "../../providers/LoginSheetProvider";
 import api from "../../services/apiClient";
-import { Buffer } from "buffer";
 import { safeBack } from "../../utils/navigation";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import { formatPhone } from "../../utils/formatPhone";
 
 const { width } = Dimensions.get("window");
 
 export default function ProfileScreen() {
-  const { user, loading, fetchProfile, logout } = useContext(AuthContext);
+  const { user, loading, fetchProfile, logout, avatarUrl, loadAvatar } =
+    useContext(AuthContext);
   const { theme } = useTheme();
   const router = useRouter();
   const { openLoginSheet } = useLoginSheet();
-  const [imageUrl, setImageUrl] = useState(null);
+  // Photo comes from AuthProvider (loaded once, updated after upload)
+  const imageUrl = avatarUrl;
 
   // ─── Auth Guard ───────────────────────────────────────
   useEffect(() => {
@@ -44,21 +46,8 @@ export default function ProfileScreen() {
     if (user) fetchProfile();
   }, []);
   useEffect(() => {
-    const loadImage = async () => {
-      try {
-        const res = await api.get("/auth/profile-image", {
-          responseType: "arraybuffer",
-        });
-
-        const base64 = `data:image/jpeg;base64,${Buffer.from(res.data).toString("base64")}`;
-        setImageUrl(base64);
-      } catch (err) {
-        setImageUrl(null);
-      }
-    };
-
-    if (user) loadImage();
-  }, [user]);
+    if (user && !avatarUrl) loadAvatar();
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Loading / unauthenticated state ─────────────────
   if (loading) {
@@ -195,7 +184,7 @@ export default function ProfileScreen() {
           <Text
             style={[styles.userEmail, { color: theme.colors.textSecondary }]}
           >
-            {user?.email || user?.phone || "—"}
+            {user?.email || formatPhone(user?.phone) || "—"}
           </Text>
         </View>
 
@@ -210,7 +199,7 @@ export default function ProfileScreen() {
           <InfoRow
             icon="call-outline"
             label="Phone Number"
-            value={user?.phone}
+            value={formatPhone(user?.phone)}
           />
           <InfoRow
             icon="calendar-outline"

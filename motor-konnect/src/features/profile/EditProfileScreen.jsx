@@ -19,9 +19,11 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../../providers/AuthProvider";
 import { useTheme } from "../../hooks/useTheme";
-import api from "../../services/apiClient.js";
+import { apiErrorMessage } from "../../services/apiClient.js";
+import { uploadProfileImage } from "../../services/profileImage.service";
 import { safeBack } from "../../utils/navigation";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import { formatPhone } from "../../utils/formatPhone";
 
 // ─────────────────────────────────────────────────────────
 // Field — defined OUTSIDE component so it never remounts
@@ -118,14 +120,23 @@ const SectionCard = ({ title, icon, children, theme }) => (
 // Screen
 // ─────────────────────────────────────────────────────────
 export default function EditProfileScreen() {
-  const { user, updateProfile, fetchProfile, updateVehicle } =
-    useContext(AuthContext);
+  const {
+    user,
+    updateProfile,
+    fetchProfile,
+    updateVehicle,
+    avatarUrl,
+    setAvatarUrl,
+  } = useContext(AuthContext);
   const { theme } = useTheme();
   const router = useRouter();
 
   const [saving, setSaving] = useState(false);
   const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(0);
-  const [profileImage, setProfileImage] = useState(null);
+  // New photo picked on this screen (not uploaded yet)
+  const [pickedImage, setPickedImage] = useState(null);
+  // What the avatar circle shows: the new pick, else the saved photo
+  const profileImage = pickedImage?.uri || avatarUrl;
 
   const vehicles = user?.vehicles || [];
   const selectedVehicle = vehicles[selectedVehicleIndex] || null;
@@ -141,6 +152,19 @@ export default function EditProfileScreen() {
   const [state, setState] = useState(user?.address?.state || "");
   const [postalCode, setPostalCode] = useState(user?.address?.postalCode || "");
   const [country, setCountry] = useState(user?.address?.country || "");
+
+  // Fill the form when the profile arrives (it may load after this screen opens)
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name || "");
+    setEmail(user.email || "");
+    setDob(user.dob || "");
+    setStreet(user.address?.street || "");
+    setCity(user.address?.city || "");
+    setState(user.address?.state || "");
+    setPostalCode(user.address?.postalCode || "");
+    setCountry(user.address?.country || "");
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Vehicle (editable fields only) ───────────────────
   // These two the user can change:
@@ -171,48 +195,73 @@ export default function EditProfileScreen() {
 
   // ── Image picker ─────────────────────────────────────
   const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted && perm.accessPrivileges !== "limited") {
+      Alert.alert(
+        "Allow photo access",
+        "Please allow access to your photos in Settings to choose a profile picture.",
+      );
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      quality: 0.7,
+      allowsEditing: true, // square crop → small file
+      aspect: [1, 1],
+      quality: 0.5,
     });
-    if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]) {
+      setPickedImage(result.assets[0]);
     }
   };
 
+  // Returns true if the photo was saved (or nothing to upload)
   const uploadImage = async () => {
-    if (!profileImage) return;
-    const formData = new FormData();
-    formData.append("image", {
-      uri: profileImage,
-      name: "profile.jpg",
-      type: "image/jpeg",
-    });
+    if (!pickedImage) return true;
     try {
-      await api.put("/auth/profile-image", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const dataUrl = await uploadProfileImage(pickedImage);
+      setAvatarUrl(dataUrl);
+      setPickedImage(null);
+      return true;
     } catch (err) {
-      console.log("Upload error ❌", err);
+      console.log("Upload error ❌", err?.message);
+      Alert.alert(
+        "Photo not saved",
+        err?.message ||
+          "Your details were saved, but the photo couldn't be uploaded.",
+      );
+      return false;
     }
   };
 
   // ── Save ─────────────────────────────────────────────
   const handleSave = async () => {
+    if (!name.trim()) {
+      Alert.alert("Name required", "Please enter your name.");
+      return;
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Alert.alert("Check email", "Please enter a valid email address.");
+      return;
+    }
     setSaving(true);
     try {
       // 1. Update personal info + address
       await updateProfile({
-        name,
-        email,
-        dob,
+        name: name.trim(),
+        email: email.trim(),
+        dob: dob.trim(),
         address: { street, city, state, postalCode, country },
       });
 
       // 2. Update vehicle — only registration + modelYear are editable.
       //    Brand / model / vehicleType are already stored; we pass them
       //    so the backend can resolve relations, but they won't change.
-      if (selectedVehicle?.id) {
+      const vehicleChanged =
+        selectedVehicle?.id &&
+        ((registrationNumber || "") !== (selectedVehicle.registration || "") ||
+          (modelYear || "") !==
+            (selectedVehicle.modelYear?.year?.toString() || ""));
+      if (vehicleChanged) {
         await updateVehicle(selectedVehicle.id, {
           registration: registrationNumber,
           vehicleType: selectedVehicle?.vehicleType?.name,
@@ -223,15 +272,16 @@ export default function EditProfileScreen() {
       }
 
       // 3. Upload profile image if changed
-      await uploadImage();
+      const photoOk = await uploadImage();
 
-      // 4. Refresh and go back
-      await fetchProfile();
-      safeBack(router);
+      // 4. Refresh and go back (stay here if the photo failed, to retry)
+      fetchProfile();
+      if (photoOk) safeBack(router);
     } catch (err) {
+      console.log("Save profile error:", err?.response?.data || err?.message);
       Alert.alert(
         "Save Failed",
-        err?.response?.data?.message || "Something went wrong.",
+        apiErrorMessage(err, "Couldn't save your profile. Please try again."),
       );
     } finally {
       setSaving(false);
@@ -333,7 +383,7 @@ export default function EditProfileScreen() {
             />
             <Field
               label="Phone Number"
-              value={user?.phone || ""}
+              value={formatPhone(user?.phone)}
               onChangeText={() => {}}
               keyboardType="phone-pad"
               icon="call-outline"
@@ -554,18 +604,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarInitials: { fontSize: 28, fontWeight: "800" },
-  camerabage: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  camerabage: {}, // overridden below
-  // (defining the real one properly:)
   camerabage: {
     position: "absolute",
     bottom: 2,

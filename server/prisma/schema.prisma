@@ -24,6 +24,10 @@ model User {
   lastName   String?
   phone      String?  @unique
   avatar     String?
+  // Motor Konnect app profile (restored — removed on 2026-10-12 but the app uses them)
+  dob              String?
+  profileImage     Bytes?
+  profileImageType String?
   isVerified Boolean  @default(false)
   isActive   Boolean  @default(true)
   isBlocked  Boolean  @default(false)

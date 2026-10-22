@@ -14,9 +14,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useCallback, useContext, useState } from "react";
+import { AuthContext } from "../../providers/AuthProvider";
+import { VehicleContext } from "../../providers/VehicleProvider";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../../hooks/useTheme";
-import api from "../../services/apiClient.js";
+import api, { apiErrorMessage } from "../../services/apiClient.js";
 import { safeBack } from "../../utils/navigation";
 import ScreenHeader from "../../components/common/ScreenHeader";
 
@@ -47,6 +50,14 @@ export default function VehiclesScreen() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const { fetchProfile } = useContext(AuthContext);
+  const { reloadVehicles } = useContext(VehicleContext);
+  // Keep Profile / Home in sync after a change here
+  const syncElsewhere = () => {
+    fetchProfile?.();
+    reloadVehicles?.();
+  };
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -55,16 +66,21 @@ export default function VehiclesScreen() {
   // Primary setting state
   const [settingPrimary, setSettingPrimary] = useState(null); // vehicle id
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
+  // Reload every time the screen is shown (e.g. after adding a vehicle)
+  useFocusEffect(
+    useCallback(() => {
+      fetchVehicles();
+    }, []), // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const fetchVehicles = async () => {
+    setLoadError(null);
     try {
       const res = await api.get("/auth/vehicles");
-      setVehicles(res.data?.data || []);
+      setVehicles(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (err) {
       console.log("Vehicles fetch error:", err.response?.data || err.message);
+      setLoadError(apiErrorMessage(err, "Couldn't load your vehicles."));
     } finally {
       setLoading(false);
     }
@@ -78,6 +94,7 @@ export default function VehiclesScreen() {
       setVehicles((prev) =>
         prev.map((v) => ({ ...v, isPrimary: v.id === vehicleId })),
       );
+      syncElsewhere();
     } catch (err) {
       console.log("Set primary error:", err.response?.data || err.message);
     } finally {
@@ -99,6 +116,7 @@ export default function VehiclesScreen() {
       await api.delete(`/auth/vehicles/${deleteTarget.id}`);
       setVehicles((prev) => prev.filter((v) => v.id !== deleteTarget.id));
       setDeleteTarget(null);
+      syncElsewhere();
     } catch (err) {
       console.log("Delete error:", err.response?.data || err.message);
     } finally {
@@ -151,6 +169,33 @@ export default function VehiclesScreen() {
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      ) : loadError && vehicles.length === 0 ? (
+        <View style={styles.centered}>
+          <Ionicons
+            name="cloud-offline-outline"
+            size={48}
+            color={theme.colors.textSecondary}
+          />
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+            Couldn&apos;t load vehicles
+          </Text>
+          <Text
+            style={[styles.emptySub, { color: theme.colors.textSecondary }]}
+          >
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            onPress={() => {
+              setLoading(true);
+              fetchVehicles();
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="refresh" size={18} color="#fff" />
+            <Text style={styles.addBtnText}>Try again</Text>
+          </TouchableOpacity>
         </View>
       ) : vehicles.length === 0 ? (
         <View style={styles.centered}>

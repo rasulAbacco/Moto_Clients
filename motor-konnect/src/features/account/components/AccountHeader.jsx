@@ -8,18 +8,17 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { AuthContext } from "../../../providers/AuthProvider";
 import { useRouter } from "expo-router";
-import api from "../../../services/apiClient";
-import { Buffer } from "buffer";
 import NotificationPanel from "./NotificationPanel";
+import { formatPhone } from "../../../utils/formatPhone";
 
 const { width } = Dimensions.get("window");
 
 export default function AccountHeader() {
   const { theme } = useTheme();
-  const { user } = useContext(AuthContext);
+  const { user, avatarUrl } = useContext(AuthContext);
   const router = useRouter();
 
   const initials = user?.name
@@ -31,23 +30,9 @@ export default function AccountHeader() {
         .toUpperCase()
     : "?";
 
-  const [imageUrl, setImageUrl] = useState(null);
+  // Photo comes from AuthProvider (loaded once, updated after upload)
+  const imageUrl = avatarUrl;
   const [notifVisible, setNotifVisible] = useState(false);
-
-  useEffect(() => {
-    const loadImage = async () => {
-      try {
-        const res = await api.get("/auth/profile-image", {
-          responseType: "arraybuffer",
-        });
-        const base64 = `data:image/jpeg;base64,${Buffer.from(res.data).toString("base64")}`;
-        setImageUrl(base64);
-      } catch {
-        setImageUrl(null);
-      }
-    };
-    if (user) loadImage();
-  }, [user]);
 
   return (
     <>
@@ -90,7 +75,7 @@ export default function AccountHeader() {
               {user?.name || "Guest"}
             </Text>
             <Text style={[styles.phone, { color: theme.colors.textSecondary }]}>
-              {user?.phone || user?.email || ""}
+              {formatPhone(user?.phone) || user?.email || ""}
             </Text>
           </View>
         </View>

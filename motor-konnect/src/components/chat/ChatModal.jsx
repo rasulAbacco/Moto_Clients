@@ -15,20 +15,12 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
-// ── CONFIGURATION ────────────────────────────────────────────────────────
-// ADD YOUR API KEY HERE
-const GEMINI_API_KEY = "AIzaSyAe_FJP_pAK0ChB2s9HexFBpaa4tx8-5j8";
+import api from "../../services/apiClient";
 
-const SYSTEM_PROMPT = `
-You are the expert AI Support Assistant for Motor Konnect (the app) and Motor Store. 
-Knowledge Rules:
-- We provide Car and Bike services (Scheduled Packages, Engine, AC, Detailing, etc.).
-- SOS: Emergency requests (Puncture, Towing, Jumpstart) are high priority.
-- Location: We suggest garages based on user's live location.
-- Pricing: Owners set prices; they vary garage to garage.
-- Navigation: Suggest 'Go to Profile' for adding vehicles, 'Select Garage' for services.
-Interaction: Handle typos (servis -> service). Be concise. Use **bold** for emphasis.
-`;
+// The chatbot runs on our server (POST /api/chat). The Gemini key and all the
+// bot's knowledge about Motor Konnect live there (server/src/controllers/
+// chat.controller.js) — never put an API key in the app; it gets leaked.
+const SUPPORT_PHONE = "+91 77956 92753";
 
 const BRAND = {
   bg: "#F6F7F9",
@@ -213,14 +205,8 @@ export default function ChatModal({ visible, onClose }) {
   const flatListRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(600)).current;
 
-  // Manual History Management for the REST API
-  const conversationHistory = useRef([
-    { role: "user", parts: [{ text: "Context: " + SYSTEM_PROMPT }] },
-    {
-      role: "model",
-      parts: [{ text: "Understood. I am the Motor Konnect assistant." }],
-    },
-  ]);
+  // Previous messages, sent to the server for context
+  const conversationHistory = useRef([]);
 
   useEffect(() => {
     if (visible) {
@@ -246,46 +232,33 @@ export default function ChatModal({ visible, onClose }) {
     });
   }
 
-  const callGeminiAPI = async (userText) => {
+  const callChatbot = async (userText) => {
     try {
-      // Direct Fetch call to bypass library version issues
-      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            ...conversationHistory.current,
-            { role: "user", parts: [{ text: userText }] },
-          ],
-        }),
-      });
+      const { data } = await api.post(
+        "/chat",
+        { message: userText, history: conversationHistory.current },
+        { timeout: 40000 },
+      );
+      const reply =
+        data?.reply ||
+        `Sorry, I couldn't answer that. Please contact support on **${SUPPORT_PHONE}**.`;
 
-      const json = await response.json();
+      // Remember the conversation for the next message (last 12 only)
+      conversationHistory.current = [
+        ...conversationHistory.current,
+        { role: "user", text: userText },
+        { role: "bot", text: reply },
+      ].slice(-12);
 
-      if (json.error) {
-        console.error("API Error:", json.error);
-        return "I'm having a technical issue. Please try again or call **1-800-GARAGE**.";
-      }
-
-      const botResponseText =
-        json?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "No response from AI";
-
-      // Update local history for context in next message
-      conversationHistory.current.push({
-        role: "user",
-        parts: [{ text: userText }],
-      });
-      conversationHistory.current.push({
-        role: "model",
-        parts: [{ text: botResponseText }],
-      });
-
-      return botResponseText;
+      return reply;
     } catch (error) {
-      console.error("Fetch Error:", error);
-      return "Connection error. Please check your internet.";
+      if (error?.response?.status === 429) {
+        return "You're sending messages too fast. Please wait a moment and try again.";
+      }
+      if (__DEV__) console.log("Chatbot error:", error?.message);
+      return error?.response
+        ? `I'm having a technical issue. Please try again, or call support on **${SUPPORT_PHONE}**.`
+        : "Connection problem. Please check your internet and try again.";
     }
   };
 
@@ -304,7 +277,7 @@ export default function ChatModal({ visible, onClose }) {
     setTyping(true);
     setShowQuick(false);
 
-    const botText = await callGeminiAPI(text.trim());
+    const botText = await callChatbot(text.trim());
 
     const botMsg = {
       id: `b-${Date.now()}`,
