@@ -28,6 +28,8 @@ import {
 
 import StoreHeader from "./components/StoreHeader";
 import PartCard from "./components/PartCard";
+import ViewCartBar, { VIEW_CART_BAR_HEIGHT } from "./components/ViewCartBar";
+import { usePartsCart } from "../../providers/PartsCartProvider";
 import PartDetailSheet from "./components/PartDetailSheet";
 
 const VEHICLES = [
@@ -45,6 +47,7 @@ const toVehicleKey = (v) =>
 export default function GoStoreScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const { count: cartCount } = usePartsCart();
 
   const [vehicle, setVehicle] = useState(null); // null until we read the user's vehicle
   const [parts, setParts] = useState([]);
@@ -270,7 +273,10 @@ export default function GoStoreScreen() {
         keyExtractor={(item, i) => item.id || `${item.name}-${i}`}
         numColumns={2}
         columnWrapperStyle={styles.column}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          cartCount > 0 && { paddingBottom: 32 + VIEW_CART_BAR_HEIGHT },
+        ]}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={renderEmpty}
         renderItem={({ item }) => (
@@ -288,6 +294,8 @@ export default function GoStoreScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+
+      <ViewCartBar />
 
       <PartDetailSheet part={selected} onClose={() => setSelected(null)} />
     </SafeAreaView>

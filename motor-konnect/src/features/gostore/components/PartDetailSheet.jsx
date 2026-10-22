@@ -1,4 +1,5 @@
-// Bottom sheet with full part details and vendor contact.
+// Bottom sheet with full part details, the shop's order options and buy actions.
+import { useEffect, useState } from "react";
 import {
   Modal,
   View,
@@ -13,7 +14,31 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../../hooks/useTheme";
-import { formatPrice } from "../../../utils/price.js";
+import { useRouter } from "expo-router";
+import Toast from "react-native-toast-message";
+import { formatPrice } from "../utils/price";
+import { usePartsCart } from "../../../providers/PartsCartProvider";
+
+const Badge = ({ icon, text, c, tone = "neutral" }) => {
+  const color =
+    tone === "good"
+      ? c.success
+      : tone === "muted"
+        ? c.textSecondary
+        : c.primary;
+  const bg =
+    tone === "good"
+      ? c.successSoft
+      : tone === "muted"
+        ? c.inputBackground
+        : c.primaryLight;
+  return (
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      <Ionicons name={icon} size={13} color={color} />
+      <Text style={[styles.badgeText, { color }]}>{text}</Text>
+    </View>
+  );
+};
 
 const Row = ({ label, value, c }) =>
   value ? (
@@ -29,8 +54,37 @@ export default function PartDetailSheet({ part, onClose }) {
   const { width } = useWindowDimensions();
   const slideWidth = width - 32;
   const c = theme.colors;
+  const router = useRouter();
+  const { add, quantityOf } = usePartsCart();
+  const [qty, setQty] = useState(1);
+
+  useEffect(() => setQty(1), [part?.inventoryId]);
 
   if (!part) return null;
+
+  const v = part.vendor || {};
+  const deliveryOn = v.deliveryEnabled !== false;
+  const canBuy = Boolean(part.inStock && part.inventoryId);
+  const inCart = quantityOf(part.inventoryId);
+  const maxQty = part.stock ? Math.min(50, part.stock) : 50;
+
+  const addToCart = () => {
+    if (!add(part, qty)) return false;
+    Toast.show({
+      type: "success",
+      text1: "Added to cart",
+      text2: `${qty} × ${part.name}`,
+    });
+    return true;
+  };
+  const buyNow = () => {
+    if (!add(part, qty)) return;
+    onClose?.();
+    router.push({
+      pathname: "/parts/checkout",
+      params: { vendorId: String(v.id) },
+    });
+  };
 
   const phone = part.vendor?.phone
     ? String(part.vendor.phone).replace(/[^0-9+]/g, "")
@@ -158,6 +212,47 @@ export default function PartDetailSheet({ part, onClose }) {
               </Text>
             </View>
 
+            {/* What this shop offers at checkout */}
+            <View style={styles.badges}>
+              {deliveryOn ? (
+                <Badge
+                  c={c}
+                  icon="bicycle-outline"
+                  text={
+                    v.deliveryCharge > 0
+                      ? `Delivery ${formatPrice(v.deliveryCharge)}`
+                      : "Free delivery"
+                  }
+                />
+              ) : (
+                <Badge
+                  c={c}
+                  icon="storefront-outline"
+                  text="Store pickup only"
+                  tone="muted"
+                />
+              )}
+              {deliveryOn && v.codEnabled !== false && (
+                <Badge
+                  c={c}
+                  icon="cash-outline"
+                  text="Cash on delivery"
+                  tone="good"
+                />
+              )}
+              {!deliveryOn && (
+                <Badge
+                  c={c}
+                  icon="cash-outline"
+                  text="Pay at shop"
+                  tone="good"
+                />
+              )}
+              {v.acceptsUpi && (
+                <Badge c={c} icon="phone-portrait-outline" text="UPI" />
+              )}
+            </View>
+
             {!!part.description && (
               <Text style={[styles.description, { color: c.textSecondary }]}>
                 {part.description}
@@ -213,39 +308,94 @@ export default function PartDetailSheet({ part, onClose }) {
                     color={c.success}
                   />
                 )}
+                {!!phone && (
+                  <Pressable
+                    onPress={call}
+                    hitSlop={8}
+                    accessibilityLabel="Call shop"
+                    style={[styles.iconBtn, { borderColor: c.border }]}
+                  >
+                    <Ionicons name="call-outline" size={18} color={c.primary} />
+                  </Pressable>
+                )}
+                {!!phone && (
+                  <Pressable
+                    onPress={whatsapp}
+                    hitSlop={8}
+                    accessibilityLabel="WhatsApp shop"
+                    style={[styles.iconBtn, { borderColor: c.border }]}
+                  >
+                    <Ionicons
+                      name="logo-whatsapp"
+                      size={18}
+                      color={c.primary}
+                    />
+                  </Pressable>
+                )}
               </View>
             )}
           </View>
         </ScrollView>
 
-        {phone ? (
+        {canBuy ? (
           <View style={styles.actions}>
+            <View style={[styles.stepper, { borderColor: c.border }]}>
+              <Pressable
+                onPress={() => setQty((q) => Math.max(1, q - 1))}
+                hitSlop={6}
+                accessibilityLabel="Decrease quantity"
+                style={styles.stepBtn}
+              >
+                <Ionicons
+                  name="remove"
+                  size={18}
+                  color={qty > 1 ? c.text : c.textMuted}
+                />
+              </Pressable>
+              <Text style={[styles.stepQty, { color: c.text }]}>{qty}</Text>
+              <Pressable
+                onPress={() => setQty((q) => Math.min(maxQty, q + 1))}
+                hitSlop={6}
+                accessibilityLabel="Increase quantity"
+                style={styles.stepBtn}
+              >
+                <Ionicons
+                  name="add"
+                  size={18}
+                  color={qty < maxQty ? c.text : c.textMuted}
+                />
+              </Pressable>
+            </View>
             <Pressable
-              onPress={whatsapp}
-              style={[
+              onPress={addToCart}
+              style={({ pressed }) => [
                 styles.btn,
                 styles.btnOutline,
-                { borderColor: c.primary },
+                { borderColor: c.primary, opacity: pressed ? 0.8 : 1 },
               ]}
             >
-              <Ionicons name="logo-whatsapp" size={18} color={c.primary} />
+              <Ionicons name="cart-outline" size={18} color={c.primary} />
               <Text style={[styles.btnText, { color: c.primary }]}>
-                Enquire
+                {inCart ? `Add (${inCart})` : "Add"}
               </Text>
             </Pressable>
             <Pressable
-              onPress={call}
-              style={[styles.btn, { backgroundColor: c.primary }]}
+              onPress={buyNow}
+              style={({ pressed }) => [
+                styles.btn,
+                { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1 },
+              ]}
             >
-              <Ionicons name="call" size={17} color={c.onPrimary} />
               <Text style={[styles.btnText, { color: c.onPrimary }]}>
-                Call vendor
+                Buy now
               </Text>
             </Pressable>
           </View>
         ) : (
           <Text style={[styles.noContact, { color: c.textMuted }]}>
-            Vendor contact not available for this part
+            {part.inStock
+              ? "This part can't be ordered online yet"
+              : "Out of stock — check back soon"}
           </Text>
         )}
       </View>
@@ -254,6 +404,43 @@ export default function PartDetailSheet({ part, onClose }) {
 }
 
 const styles = StyleSheet.create({
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeText: { fontSize: 12, fontWeight: "600" },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 12,
+    height: 48,
+  },
+  stepBtn: {
+    width: 36,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepQty: {
+    minWidth: 22,
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "700",
+  },
   backdrop: { flex: 1, backgroundColor: "rgba(20,36,59,0.45)" },
   sheet: {
     maxHeight: "88%",

@@ -1,14 +1,13 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
-import { useCart } from "../../../hooks/useCart";
+import { usePartsCart } from "../../../providers/PartsCartProvider";
 import { useRouter } from "expo-router";
 
 export default function StoreHeader() {
   const { theme } = useTheme();
-  const { getCount } = useCart();
+  const { count: cartCount } = usePartsCart();
   const router = useRouter();
-  const cartCount = getCount();
 
   return (
     <View style={styles.container}>
@@ -23,32 +22,55 @@ export default function StoreHeader() {
           </Text>
         </View>
 
-        {/* Cart icon button */}
-        <TouchableOpacity
-          style={[
-            styles.cartBtn,
-            {
-              backgroundColor: theme.colors.card || theme.colors.surface,
-              borderColor: theme.colors.border,
-            },
-          ]}
-          onPress={() => router.push("/cart")}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="cart-outline" size={20} color={theme.colors.text} />
-          {cartCount > 0 && (
-            <View
-              style={[
-                styles.cartBadge,
-                { backgroundColor: theme.colors.primary },
-              ]}
-            >
-              <Text style={styles.cartBadgeText}>
-                {cartCount > 9 ? "9+" : cartCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          {/* My parts orders */}
+          <TouchableOpacity
+            style={[
+              styles.cartBtn,
+              {
+                backgroundColor: theme.colors.card || theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => router.push("/parts/orders")}
+            activeOpacity={0.8}
+            accessibilityLabel="My parts orders"
+          >
+            <Ionicons
+              name="receipt-outline"
+              size={20}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
+
+          {/* Parts cart */}
+          <TouchableOpacity
+            style={[
+              styles.cartBtn,
+              {
+                backgroundColor: theme.colors.card || theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => router.push("/parts/cart")}
+            activeOpacity={0.8}
+            accessibilityLabel="Parts cart"
+          >
+            <Ionicons name="cart-outline" size={20} color={theme.colors.text} />
+            {cartCount > 0 && (
+              <View
+                style={[
+                  styles.cartBadge,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+              >
+                <Text style={styles.cartBadgeText}>
+                  {cartCount > 9 ? "9+" : cartCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Subtitle */}
@@ -95,6 +117,7 @@ export default function StoreHeader() {
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: "row", gap: 8 },
   container: {
     marginBottom: 20,
     gap: 6,

@@ -243,7 +243,9 @@ export function LoginSheetProvider({ children }) {
       setResendTimer(30);
     } catch (err) {
       console.log("Send OTP Error:", err?.response?.data || err);
-      alert("Failed to send OTP. Please try again.");
+      alert(
+        err?.response?.data?.message || "Failed to send OTP. Please try again.",
+      );
     } finally {
       setLoading(false);
     }

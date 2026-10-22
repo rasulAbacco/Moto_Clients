@@ -16,6 +16,7 @@ import { VehicleProvider } from "../src/providers/VehicleProvider";
 import { ThemeProvider } from "../src/providers/ThemeProvider";
 import { QueryProvider } from "../src/providers/QueryProvider";
 import { CartProvider } from "../src/providers/CartProvider";
+import { PartsCartProvider } from "../src/providers/PartsCartProvider";
 import { LoginSheetProvider } from "../src/providers/LoginSheetProvider";
 import { getSelectedVehicle } from "../src/features/vehicle/vehicle.service";
 import ChatWidget from "../src/components/chat/ChatWidget";
@@ -129,36 +130,38 @@ export default function RootLayout() {
             <VehicleProvider>
               <QueryProvider>
                 <CartProvider>
-                  <LoginSheetProvider>
-                    <AppGuard>
-                      <StatusBar style="dark" />
-                      <Stack
-                        screenOptions={{
-                          headerShown: false,
-                          // iOS: native edge swipe-back from anywhere on the screen
-                          gestureEnabled: true,
-                          fullScreenGestureEnabled: true,
-                          // Android: standard right-to-left push; iOS keeps native push
-                          animation:
-                            Platform.OS === "android"
-                              ? "slide_from_right"
-                              : "default",
-                          contentStyle: { backgroundColor: palette.slate50 },
-                        }}
-                      >
-                        {/* Root screens: no swipe-back into the splash/auth redirect */}
-                        <Stack.Screen
-                          name="index"
-                          options={{ gestureEnabled: false }}
-                        />
-                        <Stack.Screen
-                          name="(tabs)"
-                          options={{ gestureEnabled: false }}
-                        />
-                      </Stack>
-                      <ChatWidget />
-                    </AppGuard>
-                  </LoginSheetProvider>
+                  <PartsCartProvider>
+                    <LoginSheetProvider>
+                      <AppGuard>
+                        <StatusBar style="dark" />
+                        <Stack
+                          screenOptions={{
+                            headerShown: false,
+                            // iOS: native edge swipe-back from anywhere on the screen
+                            gestureEnabled: true,
+                            fullScreenGestureEnabled: true,
+                            // Android: standard right-to-left push; iOS keeps native push
+                            animation:
+                              Platform.OS === "android"
+                                ? "slide_from_right"
+                                : "default",
+                            contentStyle: { backgroundColor: palette.slate50 },
+                          }}
+                        >
+                          {/* Root screens: no swipe-back into the splash/auth redirect */}
+                          <Stack.Screen
+                            name="index"
+                            options={{ gestureEnabled: false }}
+                          />
+                          <Stack.Screen
+                            name="(tabs)"
+                            options={{ gestureEnabled: false }}
+                          />
+                        </Stack>
+                        <ChatWidget />
+                      </AppGuard>
+                    </LoginSheetProvider>
+                  </PartsCartProvider>
                 </CartProvider>
               </QueryProvider>
             </VehicleProvider>

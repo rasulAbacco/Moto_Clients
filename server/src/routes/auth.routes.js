@@ -21,17 +21,22 @@ import {
   sendEmailOTP,
   verifyEmailOTP,
   completeProfile,
+  sendLoginOtp,
+  verifyLoginOtp,
 } from "../controllers/otp.controller.js";
 
 const router = express.Router();
 
-// Public - Email OTP
-router.post("/send-otp", sendEmailOTP);
-router.post("/verify-otp", verifyEmailOTP);
+// Public - login OTP. Phone (SMS) when a phone is sent — this is what the
+// Motor Konnect app uses, email optional. Email-only requests get email OTP.
+router.post("/send-otp", sendLoginOtp);
+router.post("/verify-otp", verifyLoginOtp);
 
-// Public - SMS OTP (legacy)
+// Public - explicit variants
 router.post("/send-sms-otp", sendOtp);
 router.post("/verify-sms-otp", verifyOtp);
+router.post("/send-email-otp", sendEmailOTP);
+router.post("/verify-email-otp", verifyEmailOTP);
 
 // Protected — profile
 router.get("/me", authenticate, getProfile);

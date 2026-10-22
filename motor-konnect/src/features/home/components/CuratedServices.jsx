@@ -136,7 +136,7 @@ export default function CuratedServices() {
               </View>
 
               <Text style={styles.text} numberOfLines={3}>
-                "{item.text}"
+                &ldquo;{item.text}&rdquo;
               </Text>
 
               <View style={styles.footer}>

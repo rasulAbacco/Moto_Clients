@@ -7,7 +7,7 @@ import { Tabs } from "expo-router";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/hooks/useTheme";
-import { useCart } from "../../src/hooks/useCart";
+import { usePartsCart } from "../../src/providers/PartsCartProvider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TABS = [
@@ -80,8 +80,8 @@ function TabIcon({ tab, focused, color, cartCount, theme }) {
 
 export default function TabsLayout() {
   const { theme } = useTheme();
-  const { getCount } = useCart();
-  const cartCount = getCount();
+  // Store tab badge = spare parts in the cart
+  const { count: cartCount } = usePartsCart();
   const c = theme.colors;
   const insets = useSafeAreaInsets();
 

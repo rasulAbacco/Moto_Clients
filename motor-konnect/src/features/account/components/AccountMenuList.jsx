@@ -30,6 +30,11 @@ export default function AccountMenuList() {
       items: [
         { title: "My Vehicles", icon: "car-outline", path: "/vehicles" },
         {
+          title: "My Parts Orders",
+          icon: "bag-handle-outline",
+          path: "/parts/orders",
+        },
+        {
           title: "Service History",
           icon: "time-outline",
           path: "/service-history",

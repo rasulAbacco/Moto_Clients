@@ -18,7 +18,7 @@ export default function NotFound() {
         </View>
         <Text style={[styles.title, { color: c.text }]}>Page not found</Text>
         <Text style={[styles.sub, { color: c.textSecondary }]}>
-          The page you are looking for doesn't exist or has moved.
+          The page you are looking for doesn&apos;t exist or has moved.
         </Text>
         <Pressable
           onPress={() => router.replace("/(tabs)/home")}
