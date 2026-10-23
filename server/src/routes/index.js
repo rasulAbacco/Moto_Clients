@@ -8,6 +8,7 @@ import externalProxyRoutes from "./externalProxyRoutes.js";
 import packageRoutes from "./package.routes.js";
 import notificationRoutes from "./notification.routes.js"; // ← NEW
 import sparePartsRoutes from "./sparePartsRoutes.js";
+import chatRoutes from "./chat.routes.js";
 
 const router = express.Router();
 
@@ -20,4 +21,5 @@ router.use("/v1", externalProxyRoutes);
 router.use("/packages", packageRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/spare-parts", sparePartsRoutes);
+router.use("/chat", chatRoutes);
 export default router;

@@ -3,6 +3,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import prisma from "../config/db.js";
+import {
+  ProfileError,
+  buildProfileUpdate,
+  toClientUser,
+} from "../utils/userProfile.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +45,7 @@ export const getProfile = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        ...rest,
+        ...toClientUser(rest), // adds `name`, hides password / image bytes
         address: address ?? {},
       },
     });
@@ -48,20 +53,35 @@ export const getProfile = async (req, res, next) => {
     next(err);
   }
 };
-export const getProfileImage = async (req, res) => {
+export const getProfileImage = async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
+      select: { profileImage: true, profileImageType: true },
     });
+
+    const type = user?.profileImageType || "image/jpeg";
+
+    // ?as=json → { dataUrl } (what the app uses — no Buffer needed on the phone)
+    if (req.query.as === "json") {
+      res.set("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        dataUrl: user?.profileImage
+          ? `data:${type};base64,${Buffer.from(user.profileImage).toString("base64")}`
+          : null,
+      });
+    }
 
     if (!user || !user.profileImage) {
       return res.status(404).send("No image found");
     }
 
-    res.set("Content-Type", user.profileImageType); // ✅ VERY IMPORTANT
-    res.send(user.profileImage); // ✅ send binary
+    res.set("Content-Type", type);
+    res.set("Cache-Control", "no-store");
+    res.send(Buffer.from(user.profileImage)); // binary
   } catch (err) {
-    res.status(500).send("Error fetching image");
+    next(err);
   }
 };
 // ─────────────────────────────────────────────
@@ -70,19 +90,20 @@ export const getProfileImage = async (req, res) => {
 // ─────────────────────────────────────────────
 export const updateProfile = async (req, res, next) => {
   try {
-    const { name, email, dob, company, taxNumber, address } = req.body;
+    const { address } = req.body;
 
-    // Build user update payload (only include defined fields)
-    const userUpdateData = {};
-    if (name !== undefined) userUpdateData.name = name;
-    if (email !== undefined) userUpdateData.email = email;
-    if (dob !== undefined) userUpdateData.dob = dob;
-    if (company !== undefined) userUpdateData.company = company;
-    if (taxNumber !== undefined) userUpdateData.taxNumber = taxNumber;
+    // name → fullName, email (optional, unique), dob. Other fields are ignored.
+    const userUpdateData = await buildProfileUpdate(req.user.id, req.body);
 
     // Upsert address if provided
-    if (address) {
-      const { street, city, state, postalCode, country } = address;
+    if (address && typeof address === "object") {
+      const clean = (v) =>
+        v === undefined ? undefined : String(v ?? "").trim() || null;
+      const street = clean(address.street);
+      const city = clean(address.city);
+      const state = clean(address.state);
+      const postalCode = clean(address.postalCode);
+      const country = clean(address.country);
 
       await prisma.userAddress.upsert({
         where: { userId: req.user.id },
@@ -102,7 +123,14 @@ export const updateProfile = async (req, res, next) => {
       where: { id: req.user.id },
       data: userUpdateData,
       include: {
-        vehicles: true,
+        vehicles: {
+          include: {
+            brand: true,
+            model: true,
+            vehicleType: true,
+            modelYear: true,
+          },
+        },
         address: true,
       },
     });
@@ -111,11 +139,16 @@ export const updateProfile = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        ...rest,
+        ...toClientUser(rest),
         address: addr ?? {},
       },
     });
   } catch (err) {
+    if (err instanceof ProfileError) {
+      return res
+        .status(err.status)
+        .json({ success: false, message: err.message });
+    }
     next(err);
   }
 };
@@ -213,7 +246,7 @@ export const addVehicle = async (req, res, next) => {
       vehicleType = "car",
       brandName,
       modelName,
-      modelYear,       // ✅ year the user typed e.g. "2023"
+      modelYear, // ✅ year the user typed e.g. "2023"
       fuelType,
       transmission,
       registration,
@@ -223,30 +256,42 @@ export const addVehicle = async (req, res, next) => {
     const type = await prisma.vehicleType.findFirst({
       where: { name: { equals: vehicleType, mode: "insensitive" } },
     });
-    if (!type) return res.status(400).json({ success: false, message: "Invalid vehicle type" });
+    if (!type)
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid vehicle type" });
 
     // 2. Find brand
     const brand = await prisma.brand.findFirst({
       where: { name: { equals: brandName, mode: "insensitive" } },
     });
-    if (!brand) return res.status(400).json({ success: false, message: "Brand not found" });
+    if (!brand)
+      return res
+        .status(400)
+        .json({ success: false, message: "Brand not found" });
 
     // 3. Find model
     const model = await prisma.model.findFirst({
-      where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
+      where: {
+        brandId: brand.id,
+        name: { equals: modelName, mode: "insensitive" },
+      },
     });
-    if (!model) return res.status(400).json({ success: false, message: "Model not found" });
+    if (!model)
+      return res
+        .status(400)
+        .json({ success: false, message: "Model not found" });
 
     // 4. Create ModelYear if year provided → copy id into Vehicle
     let modelYearId = null;
     if (modelYear) {
       const parsedYear = parseInt(modelYear.toString().match(/\d{4}/)?.[0]);
       if (parsedYear) {
-        const createdYear = await prisma.modelYear.create({
-          data: {
-            modelId: model.id,   // ✅ which model
-            year: parsedYear,    // ✅ user entered year
-          },
+        const createdYear = await prisma.modelYear.upsert({
+          // one row per model + year (unique) — reuse it if it exists
+          where: { modelId_year: { modelId: model.id, year: parsedYear } },
+          update: {},
+          create: { modelId: model.id, year: parsedYear },
         });
         modelYearId = createdYear.id; // ✅ copy id
       }
@@ -315,17 +360,18 @@ export const getVehicles = async (req, res, next) => {
           },
         },
       },
-      orderBy: [
-        { isPrimary: "desc" },
-        { createdAt: "desc" },
-      ],
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
     });
 
     // Load both JSON files once for thumbnail fallback
     let carsJson = [];
     let bikesJson = [];
-    try { carsJson = JSON.parse(fs.readFileSync(carsPath, "utf-8")); } catch (_) {}
-    try { bikesJson = JSON.parse(fs.readFileSync(bikesPath, "utf-8")); } catch (_) {}
+    try {
+      carsJson = JSON.parse(fs.readFileSync(carsPath, "utf-8"));
+    } catch (_) {}
+    try {
+      bikesJson = JSON.parse(fs.readFileSync(bikesPath, "utf-8"));
+    } catch (_) {}
 
     const getJsonThumb = (vehicleTypeName, brandName, modelName) => {
       const isBike =
@@ -351,7 +397,7 @@ export const getVehicles = async (req, res, next) => {
     };
 
     const enriched = vehicles.map((v) => {
-      const allYears = v.model?.ModelYear || [];
+      const allYears = v.model?.modelYear || [];
 
       // 1. DB ModelYear thumbnails first
       const dbThumb =
@@ -387,7 +433,8 @@ export const getVehicles = async (req, res, next) => {
 export const updateVehicle = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { vehicleType, brandName, modelName, modelYear, registration } = req.body;
+    const { vehicleType, brandName, modelName, modelYear, registration } =
+      req.body;
 
     // 1. Check ownership
     const vehicle = await prisma.vehicle.findFirst({
@@ -408,7 +455,10 @@ export const updateVehicle = async (req, res, next) => {
         where: { name: { equals: brandName, mode: "insensitive" } },
       });
       const model = await prisma.model.findFirst({
-        where: { brandId: brand?.id, name: { equals: modelName, mode: "insensitive" } },
+        where: {
+          brandId: brand?.id,
+          name: { equals: modelName, mode: "insensitive" },
+        },
       });
 
       if (!type || !brand || !model) {
@@ -423,11 +473,11 @@ export const updateVehicle = async (req, res, next) => {
       if (modelYear) {
         const parsedYear = parseInt(modelYear.toString().match(/\d{4}/)?.[0]);
         if (parsedYear) {
-          const createdYear = await prisma.modelYear.create({
-            data: {
-              modelId: model.id,  // ✅ which model
-              year: parsedYear,   // ✅ user entered year
-            },
+          const createdYear = await prisma.modelYear.upsert({
+            // one row per model + year (unique) — reuse it if it exists
+            where: { modelId_year: { modelId: model.id, year: parsedYear } },
+            update: {},
+            create: { modelId: model.id, year: parsedYear },
           });
           updateData.modelYearId = createdYear.id; // ✅ copy id → paste
         }
@@ -552,17 +602,23 @@ export const uploadProfileImage = async (req, res, next) => {
       return res.status(400).json({ message: "No image uploaded" });
     }
 
-    const user = await prisma.user.update({
+    if (!/^image\//.test(req.file.mimetype || "")) {
+      return res.status(400).json({ message: "Please upload an image" });
+    }
+
+    await prisma.user.update({
       where: { id: req.user.id },
       data: {
-        profileImage: req.file.buffer, // ✅ binary
-        profileImageType: req.file.mimetype, // ✅ type
+        profileImage: req.file.buffer,
+        profileImageType: req.file.mimetype,
       },
+      select: { id: true },
     });
 
     res.json({
       success: true,
-      message: "Image stored in DB",
+      message: "Profile photo updated",
+      dataUrl: `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
     });
   } catch (err) {
     next(err);
@@ -595,7 +651,6 @@ export const deleteVehicle = async (req, res, next) => {
   }
 };
 
-
 // PATCH /auth/vehicles/:id/primary — set one vehicle as primary
 export const setPrimaryVehicle = async (req, res, next) => {
   try {
@@ -624,4 +679,3 @@ export const setPrimaryVehicle = async (req, res, next) => {
     next(err);
   }
 };
-

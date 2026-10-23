@@ -11,7 +11,12 @@ export const authenticate = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(token, env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ message: "Invalid token" });
+    }
     const userId = decoded.userId ?? decoded.id;
 
     if (!userId) {
@@ -34,10 +39,13 @@ export const authenticate = async (req, res, next) => {
 
     next();
   } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
+    // Database problem, not a bad token — don't log the user out (401).
+    console.error("authenticate:", err.message);
+    return res
+      .status(503)
+      .json({ message: "Server is busy. Please try again in a moment." });
   }
 };
-
 
 //MY===================================================================
 const authenticateUser = async (req, res, next) => {
@@ -122,4 +130,3 @@ const authorizeRoles = (...roles) => {
 };
 
 export { authenticateUser, requireAuth, authorizeRoles };
-

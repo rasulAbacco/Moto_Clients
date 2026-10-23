@@ -1,6 +1,7 @@
 // controllers/otp.controller.js
 import prisma from "../config/db.js";
 import { generateToken } from "../utils/generateToken.js";
+import { displayName } from "../utils/userProfile.js";
 import axios from "axios";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -20,6 +21,11 @@ const isValidMobile = (ten) => /^[6-9]\d{9}$/.test(ten);
 const toStoredPhone = (ten) => `91${ten}`;
 
 const PHONE_OTP_MINUTES = 10; // matches the DLT SMS text ("valid for 10 minutes")
+
+// Wrong-code attempts per OTP (in memory). After 5 wrong tries the code must
+// be resent, so a 6-digit code can't be guessed.
+const MAX_WRONG_ATTEMPTS = 5;
+const wrongAttempts = new Map(); // otp record id -> count
 
 // ===================== PHONE OTP (Motor Konnect app) =====================
 // OTPs are kept (hashed) in the OTP table instead of server memory, so they
@@ -76,7 +82,8 @@ export const sendOtp = async (req, res, next) => {
     }
 
     // Only store the OTP once the SMS actually went out
-    await prisma.oTP.deleteMany({ where: { mobile: phone, verified: false } });
+    await prisma.oTP.deleteMany({ where: { mobile: phone } }); // only the newest code counts
+    if (wrongAttempts.size > 5000) wrongAttempts.clear();
     await prisma.oTP.create({
       data: {
         mobile: phone,
@@ -104,34 +111,40 @@ export const verifyOtp = async (req, res, next) => {
     }
     const phone = toStoredPhone(ten);
 
+    // Latest code sent to this number. A code that was already accepted is
+    // still allowed again until it expires — so if the phone lost signal
+    // after the server logged the user in, tapping Verify again just works
+    // instead of saying "OTP not found".
     const record = await prisma.oTP.findFirst({
-      where: { mobile: phone, verified: false },
+      where: { mobile: phone },
       orderBy: { createdAt: "desc" },
     });
     if (!record) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "OTP not found. Please request a new OTP.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "No OTP was sent to this number. Tap Resend OTP.",
+      });
     }
     if (record.expiresAt < new Date()) {
-      await prisma.oTP.delete({ where: { id: record.id } }).catch(() => {});
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "OTP expired. Please request a new OTP.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "This OTP has expired. Tap Resend OTP to get a new one.",
+      });
+    }
+    if ((wrongAttempts.get(record.id) || 0) >= MAX_WRONG_ATTEMPTS) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many wrong attempts. Tap Resend OTP to get a new code.",
+      });
     }
     if (!(await bcrypt.compare(otp, record.otp))) {
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
+      wrongAttempts.set(record.id, (wrongAttempts.get(record.id) || 0) + 1);
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect OTP. Please check the code and try again.",
+      });
     }
-    await prisma.oTP.update({
-      where: { id: record.id },
-      data: { verified: true },
-    });
+    wrongAttempts.delete(record.id);
 
     // Optional details from the app's login form
     const name = String(req.body?.name || req.body?.fullName || "").trim();
@@ -184,6 +197,13 @@ export const verifyOtp = async (req, res, next) => {
       });
     }
 
+    // Login worked — now mark the code as used
+    if (!record.verified) {
+      await prisma.oTP
+        .update({ where: { id: record.id }, data: { verified: true } })
+        .catch(() => {});
+    }
+
     const needsFullName = !user.fullName?.trim();
     const token = generateToken({ userId: user.id });
 
@@ -197,6 +217,7 @@ export const verifyOtp = async (req, res, next) => {
         phone: user.phone,
         email: user.email,
         fullName: user.fullName,
+        name: displayName(user) || null,
         role: user.role,
       },
     });
@@ -401,6 +422,7 @@ export const verifyEmailOTP = async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        name: displayName(user) || null,
         phone: user.phone,
         role: user.role,
         isVerified: user.isVerified,
@@ -446,6 +468,7 @@ export const completeProfile = async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        name: displayName(user) || null,
         lastName: user.lastName,
         phone: user.phone,
         role: user.role,

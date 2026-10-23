@@ -17,6 +17,7 @@ import { useAuth } from "./AuthProvider";
 import { useTheme } from "../hooks/useTheme";
 import { setToken } from "../services/storage.service";
 import Toast from "react-native-toast-message";
+import { apiErrorMessage } from "../services/apiClient";
 const LoginSheetContext = createContext();
 export const useLoginSheet = () => useContext(LoginSheetContext);
 
@@ -162,6 +163,7 @@ export function LoginSheetProvider({ children }) {
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
+  const busy = useRef(false); // blocks double taps before `loading` re-renders
 
   // Slide-up animation
   const slideY = useRef(new Animated.Value(400)).current;
@@ -204,6 +206,7 @@ export function LoginSheetProvider({ children }) {
   };
 
   const handleSendOtp = async () => {
+    if (busy.current) return;
     if (!name.trim() || !phone.trim()) {
       alert("Name and Phone are required");
       return;
@@ -215,6 +218,7 @@ export function LoginSheetProvider({ children }) {
     }
 
     try {
+      busy.current = true;
       setLoading(true);
 
       // reset previous state
@@ -243,21 +247,22 @@ export function LoginSheetProvider({ children }) {
       setResendTimer(30);
     } catch (err) {
       console.log("Send OTP Error:", err?.response?.data || err);
-      alert(
-        err?.response?.data?.message || "Failed to send OTP. Please try again.",
-      );
+      alert(apiErrorMessage(err, "Failed to send OTP. Please try again."));
     } finally {
+      busy.current = false;
       setLoading(false);
     }
   };
 
   const handleVerifyOtp = async () => {
+    if (busy.current) return;
     if (otp.length < 6) {
       alert("Please enter the 6-digit OTP");
       return;
     }
 
     try {
+      busy.current = true;
       setLoading(true);
 
       await verifyOtp({
@@ -282,9 +287,13 @@ export function LoginSheetProvider({ children }) {
       Toast.show({
         type: "error",
         text1: "Login Failed",
-        text2: err?.response?.data?.message || "Invalid OTP",
+        text2: apiErrorMessage(
+          err,
+          "Couldn't verify the OTP. Please try again.",
+        ),
       });
     } finally {
+      busy.current = false;
       setLoading(false);
     }
   };
@@ -303,8 +312,8 @@ export function LoginSheetProvider({ children }) {
 
       setResendTimer(30);
       setOtp("");
-    } catch {
-      alert("Failed to resend OTP");
+    } catch (err) {
+      alert(apiErrorMessage(err, "Failed to resend OTP"));
     } finally {
       setLoading(false);
     }

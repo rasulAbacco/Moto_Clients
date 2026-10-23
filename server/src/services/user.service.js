@@ -1,32 +1,28 @@
 //user.service.js
 import prisma from "../config/db.js";
+import {
+  buildProfileUpdate,
+  clientUserSelect,
+  toClientUser,
+} from "../utils/userProfile.js";
 
 export const getCurrentUserService = async (userId) => {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      createdAt: true,
-    },
+    select: clientUserSelect,
   });
+  return toClientUser(user);
 };
 
-export const updateUserService = async (userId, data) => {
-  return prisma.user.update({
+// Only whitelisted profile fields can change (name / email / dob) — never role etc.
+export const updateUserService = async (userId, body) => {
+  const data = await buildProfileUpdate(userId, body);
+  const user = await prisma.user.update({
     where: { id: userId },
     data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-    },
+    select: clientUserSelect,
   });
+  return toClientUser(user);
 };
 
 // Check user role by email - returns user info including role
