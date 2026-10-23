@@ -12,7 +12,8 @@ import * as SecureStore from "expo-secure-store";
 const DEFAULT_API_URL = "https://moto-clients.onrender.com/api";
 
 export const API_URL = (
-  process.env.EXPO_PUBLIC_MAIN_API_URL || DEFAULT_API_URL
+  process.env.EXPO_PUBLIC_MAIN_API_URL ||
+  "https://moto-clients.onrender.com/api"
 ).replace(/\/+$/, "");
 
 if (__DEV__) console.log("API base URL:", API_URL);

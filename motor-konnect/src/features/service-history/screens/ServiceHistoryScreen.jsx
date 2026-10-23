@@ -19,7 +19,7 @@ import { safeBack } from "../../../utils/navigation";
 import ScreenHeader from "../../../components/common/ScreenHeader";
 
 const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.3:8000/api/v1";
+  process.env.EXPO_PUBLIC_API_URL || "https://moto-clients.onrender.com/api/v1";
 
 const STATUS_COLORS = {
   PENDING: "#B8862B",
