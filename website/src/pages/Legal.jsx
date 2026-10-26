@@ -1,217 +1,103 @@
-import React, { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Printer, Mail, FileText, ShieldCheck } from "lucide-react";
+import PageHero from "../components/PageHero";
+import { CONTACT } from "../data/site";
+
+const privacy = [
+  { h: "Information we collect", p: "We collect the details you give us when you create an account or book a service — your name, phone number, email, vehicle details and service history — along with device and usage data that helps us keep the app running smoothly.", list: ["Account and contact information", "Vehicle make, model, registration and service records", "Location data, only while booking or during an active SOS", "Payment confirmations shared by partner garages (we never store card details)"] },
+  { h: "How we use your data", p: "Motor Konnect uses high-precision location to dispatch SOS help and to show nearby garages. We do not sell your personal or movement data to advertisers.", list: ["Matching you with verified garages and technicians", "Sending booking confirmations, reminders and SOS updates", "Improving service quality and preventing fraud"] },
+  { h: "The SOS exception", p: "When you trigger an SOS, some privacy limits are relaxed to keep you safe: your real-time GPS coordinates are shared with the assigned responder, our recovery partners and, where necessary, emergency services.", note: "Location sharing ends automatically when the SOS job is closed." },
+  { h: "Sharing with partners", p: "We share only what a garage or technician needs to complete your job — your name, contact number, vehicle details and the service requested. Partners are contractually bound to protect this information." },
+  { h: "Security & retention", p: "Personal identifiers are encrypted in transit and at rest. Inactive accounts are purged after 12 months, and you can request a copy or deletion of your data at any time.", list: ["End-to-end encryption on personal identifiers", "Automated data purging after 12 months of inactivity", "Handled in line with applicable Indian data protection law"] },
+  { h: "Your rights", p: `You can access, correct or delete your information, and withdraw consent for optional communications. Write to ${CONTACT.email} and we'll respond within 30 days.` },
+];
+
+const terms = [
+  { h: "Platform licence", p: "By using Motor Konnect you receive a non-exclusive, non-transferable licence to use our garage discovery, booking, spare parts and SOS tools for personal or business vehicle care. Scraping or reverse-engineering the technician network is prohibited." },
+  { h: "Bookings & estimates", p: "Prices shown in the app are estimates provided by the garage. The final invoice is issued by the service provider after inspection, and any additional work requires your approval first.", list: ["Cancel or reschedule free of charge up to 2 hours before your slot", "Repeated no-shows may limit future bookings"] },
+  { h: "Direct payment governance", p: "Our “Pay at Garage” model is built for transparency. Motor Konnect is a facilitator, not a payment processor for maintenance fees.", list: ["Financial disputes are settled directly with the garage owner — we'll help mediate", "Motor Konnect takes no commission from your service total"] },
+  { h: "Emergency usage", p: "SOS is for genuine breakdowns and roadside emergencies. Dispatch times depend on location, traffic and weather and are estimates, not guarantees.", note: "Fraudulent SOS alerts or platform misuse may lead to a permanent ban from the Motor Konnect network." },
+  { h: "Spare parts", p: "Parts are graded as OEM, OES or certified aftermarket. Warranty terms follow the manufacturer or supplier. Unused parts in original packaging may be returned per the return policy shared at the time of order." },
+  { h: "Technician liability", p: "Every technician is vetted through the Motor Desk verification process. Motor Konnect acts as a discovery and coordination layer and is not liable for mechanical failures or secondary damage during service; workmanship claims are handled with the partner garage, with our support." },
+];
 
 const Legal = ({ type }) => {
+  const isPrivacy = type === "privacy";
+  const sections = isPrivacy ? privacy : terms;
+  const [active, setActive] = useState(0);
+
   useEffect(() => {
-    window.scrollTo(0, 0);
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setActive(Number(e.target.dataset.i))),
+      { rootMargin: "-40% 0px -55% 0px" },
+    );
+    document.querySelectorAll("[data-i]").forEach((el) => io.observe(el));
+    return () => io.disconnect();
   }, [type]);
 
-  const isPrivacy = type === "privacy";
-
   return (
-    <div
-      style={{
-        background: "#F5F5F3",
-        minHeight: "100-screen",
-        padding: "8rem 0",
-      }}
-    >
+    <div>
       <style>{`
-        .legal-card {
-          background: #FFFFFF;
-          border: 1px solid #E0E0DB;
-          border-radius: 32px;
-          padding: 5rem;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.02);
-        }
-        .legal-header {
-          font-family: 'DM Serif Display', serif;
-          font-size: clamp(2.5rem, 5vw, 3.5rem);
-          color: #1A1A1A;
-          margin-bottom: 1rem;
-          letter-spacing: -0.02em;
-        }
-        .legal-meta {
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: #2563EB;
-          text-transform: uppercase;
-          letter-spacing: 0.15em;
-          margin-bottom: 2rem;
-          display: block;
-        }
-        .legal-section {
-          margin-bottom: 4rem;
-        }
-        .legal-section h2 {
-          font-family: 'DM Serif Display', serif;
-          font-size: 1.75rem;
-          color: #1A1A1A;
-          margin-bottom: 1.25rem;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .legal-section p {
-          color: #5A5A5A;
-          line-height: 1.8;
-          font-size: 1.05rem;
-          margin-bottom: 1.5rem;
-        }
-        .legal-list {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-        }
-        .legal-list li {
-          padding-left: 1.5rem;
-          position: relative;
-          margin-bottom: 1rem;
-          color: #5A5A5A;
-          line-height: 1.6;
-        }
-        .legal-list li::before {
-          content: "";
-          position: absolute;
-          left: 0;
-          top: 10px;
-          width: 6px;
-          height: 6px;
-          background: #2563EB;
-          border-radius: 50%;
-        }
-        .trust-badge {
-          background: #F9F9F7;
-          border: 1px solid #E0E0DB;
-          padding: 1.5rem;
-          border-radius: 16px;
-          margin-top: 2rem;
-        }
+        .legal { display: grid; grid-template-columns: 260px 1fr; gap: 56px; align-items: start; }
+        @media (max-width: 900px) { .legal { grid-template-columns: 1fr; } .toc { display: none; } }
+        .toc { position: sticky; top: 110px; }
+        .toc a { display: flex; gap: 12px; padding: 11px 14px; border-radius: 12px; font-size: .88rem; color: var(--muted); border-left: 2px solid transparent; transition: .3s; }
+        .toc a.on { color: var(--ink); background: #fff; border-left-color: var(--brass); font-weight: 700; }
+        .toc a span { color: var(--brass); font-weight: 800; font-size: .75rem; }
+        .legal-card { padding: 56px; }
+        @media (max-width: 560px) { .legal-card { padding: 32px 22px; } }
+        .lsec { padding: 36px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 110px; }
+        .lsec:first-child { padding-top: 0; }
+        .lsec:last-child { border-bottom: 0; }
+        .lsec h2 { font-family: var(--serif); font-weight: 400; font-size: 1.8rem; color: var(--ink); margin: 0 0 16px; display: flex; gap: 14px; align-items: baseline; }
+        .lsec h2 span { font-size: .9rem; color: var(--brass); font-family: var(--sans); font-weight: 800; }
+        .lsec p { color: var(--muted); line-height: 1.85; margin: 0 0 16px; }
+        .lsec ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+        .lsec li { position: relative; padding-left: 22px; color: var(--muted); line-height: 1.6; }
+        .lsec li::before { content: ""; position: absolute; left: 0; top: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--brass); }
+        .lnote { background: var(--brass-soft); border-radius: 14px; padding: 16px 20px; font-weight: 600; color: var(--ink); font-size: .9rem; }
+        @media print { .nav, .topbar, .footer, .page-hero, .toc, .to-top { display: none !important; } }
       `}</style>
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 1.5rem" }}>
-        <div className="legal-card">
-          <span className="legal-meta">Compliance Document v2.4</span>
-          <h1 className="legal-header">
-            {isPrivacy ? "Privacy Policy" : "Terms of Service"}
-          </h1>
-          <p
-            style={{ color: "#888", marginBottom: "4rem", fontSize: "0.9rem" }}
-          >
-            Last updated: May 2026. This document governs the use of the Motor
-            Konnect App and Motor Desk CRM ecosystem.
-          </p>
+      <PageHero
+        crumb={isPrivacy ? "Privacy Policy" : "Terms of Service"}
+        eyebrow="Compliance Document v2.4"
+        title={isPrivacy ? <>Privacy <em>Policy</em></> : <>Terms of <em>Service</em></>}
+        lead="Last updated: May 2026. This document governs the use of the Motor Konnect app, website, Spare Parts Desk and the Motor Desk CRM ecosystem."
+      />
 
-          <div className="legal-section">
-            <h2>
-              01. {isPrivacy ? "Data Architecture" : "Platform Licensing"}
-            </h2>
-            <p>
-              {isPrivacy
-                ? "Motor Konnect utilizes high-precision geofencing to facilitate SOS dispatch. We do not sell your movement data to third-party advertisers. Your location is encrypted and only visible to the assigned technician during an active service window."
-                : "By accessing Motor Konnect, you are granted a non-exclusive, non-transferable license to use our garage discovery and booking tools. Unauthorized scraping or reverse-engineering of our technician network is strictly prohibited."}
-            </p>
-            <ul className="legal-list">
-              <li>End-to-end encryption on all personal identifiers.</li>
-              <li>Automated data purging after 12 months of inactivity.</li>
-              <li>Compliance with global data protection standards.</li>
-            </ul>
-          </div>
+      <section className="section">
+        <div className="wrap legal">
+          <nav className="toc reveal">
+            {sections.map((s, i) => (
+              <a key={s.h} href={`#s${i}`} className={active === i ? "on" : ""}><span>{String(i + 1).padStart(2, "0")}</span>{s.h}</a>
+            ))}
+            <Link to={isPrivacy ? "/terms" : "/privacy"} style={{ marginTop: 18, color: "var(--brass)", fontWeight: 700 }}>
+              {isPrivacy ? <FileText size={16} /> : <ShieldCheck size={16} />} {isPrivacy ? "Terms of Service" : "Privacy Policy"} →
+            </Link>
+          </nav>
 
-          <div className="legal-section">
-            <h2>
-              02. {isPrivacy ? "The SOS Exception" : "Emergency Usage Terms"}
-            </h2>
-            <p>
-              In the event of an SOS trigger, certain privacy constraints are
-              bypassed to ensure user safety. This includes sharing your
-              real-time GPS coordinates with emergency responders and our
-              verified recovery partners.
-            </p>
-            <div className="trust-badge">
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  color: "#1A1A1A",
-                }}
-              >
-                Important: Fraudulent SOS alerts or platform misuse may lead to
-                permanent hardware-level bans from the Motor Konnect network.
-              </p>
+          <div className="card legal-card reveal d1">
+            {sections.map((s, i) => (
+              <div key={s.h} id={`s${i}`} data-i={i} className="lsec">
+                <h2><span>{String(i + 1).padStart(2, "0")}</span>{s.h}</h2>
+                <p>{s.p}</p>
+                {s.list && <ul>{s.list.map((li) => <li key={li}>{li}</li>)}</ul>}
+                {s.note && <div className="lnote" style={{ marginTop: 18 }}>{s.note}</div>}
+              </div>
+            ))}
+
+            <div style={{ marginTop: 40, paddingTop: 32, borderTop: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+              <div className="muted" style={{ fontSize: ".88rem" }}>
+                Questions? Reach our compliance team at<br />
+                <a href={`mailto:${CONTACT.email}`} style={{ color: "var(--brass)", fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center" }}><Mail size={14} /> {CONTACT.email}</a>
+              </div>
+              <button onClick={() => window.print()} className="btn btn-ink"><Printer size={16} /> Print Document</button>
             </div>
-          </div>
-
-          <div className="legal-section">
-            <h2>03. Direct Payment Governance</h2>
-            <p>
-              Our "Pay at Garage" model is designed for maximum transparency.
-              Motor Konnect is a facilitator, not a payment processor for
-              maintenance fees.
-            </p>
-            <ul className="legal-list">
-              <li>
-                All financial disputes must be settled directly with the garage
-                owner.
-              </li>
-              <li>
-                The price quoted in the app is an estimate; final invoices are
-                issued by the service provider.
-              </li>
-              <li>
-                Motor Konnect does not take commissions from your service total.
-              </li>
-            </ul>
-          </div>
-
-          <div className="legal-section">
-            <h2>04. Technician Liability</h2>
-            <p>
-              Every technician on our platform is vetted via the Motor Desk CRM
-              verification process. However, Motor Konnect acts as a discovery
-              layer and is not liable for mechanical failures or secondary
-              damage occurring during service.
-            </p>
-          </div>
-
-          <hr
-            style={{
-              border: "none",
-              borderTop: "1px solid #EEE",
-              margin: "4rem 0",
-            }}
-          />
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ color: "#888", fontSize: "0.8rem" }}>
-              Questions? Reach our compliance team at <br />
-              <span style={{ color: "#2563EB", fontWeight: 600 }}>
-                support@motorkonnect.com
-              </span>
-            </div>
-            <button
-              onClick={() => window.print()}
-              style={{
-                background: "#1A1A1A",
-                color: "white",
-                padding: "10px 20px",
-                borderRadius: "8px",
-                fontSize: "0.8rem",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Print Document
-            </button>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

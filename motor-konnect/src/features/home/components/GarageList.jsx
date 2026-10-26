@@ -19,6 +19,7 @@ export default function GarageList({ garages, loading }) {
   // ✅ Reads directly from the global store now — no more prop drilling
   // selectedVehicleType down from HomeScreen -> SectionRenderer -> here.
   const activeVehicleType = useAppStore((s) => s.activeVehicleType);
+  const garageError = useAppStore((s) => s.garageError);
 
   if (loading)
     return (
@@ -29,7 +30,9 @@ export default function GarageList({ garages, loading }) {
   if (!garages?.length)
     return (
       <View style={styles.center}>
-        <Text style={styles.loaderText}>No workshops found.</Text>
+        <Text style={[styles.loaderText, { textAlign: "center" }]}>
+          {garageError || "No workshops found."}
+        </Text>
       </View>
     );
 

@@ -17,9 +17,31 @@ import { create } from "zustand";
 // TODO: uncomment once vehicle.service.js is confirmed
 // import { getSelectedVehicle, setSelectedVehicle } from "../features/vehicle/vehicle.service";
 
-const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "https://moto-clients.onrender.com/api/v1";
-const API_KEY = process.env.EXPO_PUBLIC_API_KEY || "your_super_secret_key_here";
+import { API_BASE_URL as BASE_URL } from "../constants/config";
+// No API key in the app: our server adds the CRM key itself (CRM_API_KEY on
+// the server). Keys inside an app can always be extracted.
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// GET with a timeout (Render free servers can take ~50s to wake up)
+async function getJson(url, timeoutMs = 60000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    let data = null;
+    try {
+      data = JSON.parse(text);
+    } catch {}
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const useAppStore = create((set, get) => ({
   // ────────────────────────────────
@@ -50,130 +72,65 @@ const useAppStore = create((set, get) => ({
   // ────────────────────────────────
   garages: [],
   garageLoading: false,
+  garageError: null,
 
   hydrateGarages: async () => {
     const { garages, garageLoading } = get();
-    if (garageLoading || garages.length) {
-      console.log(
-        `🔍 [DEBUG] hydrateGarages() skipped — garageLoading=${garageLoading}, garages.length=${garages.length}`,
-      );
-      return; // already loaded/loading
-    }
+    if (garageLoading || garages.length) return; // already loaded/loading
 
     const url = `${BASE_URL}/external/users`;
-    console.log("🔍 [DEBUG] hydrateGarages() called — fetching:", url);
-    console.log(
-      "🔍 [DEBUG] EXPO_PUBLIC_API_KEY present?",
-      !!process.env.EXPO_PUBLIC_API_KEY,
-    );
+    set({ garageLoading: true, garageError: null });
 
-    set({ garageLoading: true });
-
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": API_KEY,
-        },
-      });
-
-      console.log("🔍 [DEBUG] /external/users status:", res.status, res.ok);
-
-      const text = await res.text();
-
-      // ✅ Log a snippet of the RAW body regardless of status, since
-      // fetch() doesn't throw on 4xx/5xx — a 401/404/500 with an HTML
-      // or JSON error body would otherwise pass through silently.
-      console.log(
-        "🔍 [DEBUG] /external/users raw body (first 500 chars):",
-        text.slice(0, 500),
-      );
-
-      if (!res.ok) {
-        console.log(
-          `🔍 [DEBUG] hydrateGarages aborted — non-OK status ${res.status}`,
-        );
-        set({ garages: [], garageLoading: false });
-        return;
-      }
-
-      let data;
+    // Try twice — the first call may just wake the server up
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        data = JSON.parse(text);
-      } catch (parseErr) {
-        // ✅ FIX: was referencing an undefined `error` variable here,
-        // which threw a ReferenceError caught by the OUTER catch below
-        // instead of logging anything useful.
-        console.error("🔍 [DEBUG] hydrateGarages JSON parse error:", parseErr);
-        set({ garages: [], garageLoading: false });
+        const { ok, status, data } = await getJson(url);
+        if (!ok) {
+          if (__DEV__)
+            console.log(`Garages request failed (${status}):`, data?.message);
+          if (attempt < 2 && status >= 500) {
+            await wait(2000);
+            continue;
+          }
+          set({
+            garages: [],
+            garageLoading: false,
+            garageError:
+              data?.message || `Couldn't load workshops (error ${status}).`,
+          });
+          return;
+        }
+
+        const rawList = Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data)
+            ? data
+            : [];
+        // Only garages that have at least one active service
+        const filtered = rawList.filter(
+          (g) => Array.isArray(g.services) && g.services.length > 0,
+        );
+        set({ garages: filtered, garageLoading: false, garageError: null });
         return;
+      } catch (e) {
+        if (__DEV__) console.log("Garages request error:", e?.message);
+        if (attempt < 2) {
+          await wait(2000);
+          continue;
+        }
+        set({
+          garages: [],
+          garageLoading: false,
+          garageError:
+            e?.name === "AbortError"
+              ? "The server is taking too long. Pull down to refresh."
+              : "Can't reach the server. Check your internet and pull down to refresh.",
+        });
       }
-
-      // ✅ Log the parsed shape so we can see exactly what keys exist
-      // (data.data? data itself an array? something else entirely?)
-      console.log(
-        "🔍 [DEBUG] parsed response — top-level keys:",
-        Array.isArray(data) ? "ARRAY" : Object.keys(data || {}),
-      );
-      console.log(
-        "🔍 [DEBUG] data.data is array?",
-        Array.isArray(data?.data),
-        "| length:",
-        data?.data?.length,
-      );
-
-      const rawList = Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : [];
-
-      if (rawList.length) {
-        console.log(
-          "🔍 [DEBUG] services length across ALL 41:",
-          rawList.map((g) => ({
-            id: g.id,
-            name: g.companyName || g.username,
-            servicesLen: g.services?.length ?? "n/a",
-          })),
-        );
-        console.log(
-          "🔍 [DEBUG] sample raw garage object (keys):",
-          Object.keys(rawList[0]),
-        );
-        console.log(
-          "🔍 [DEBUG] sample raw garage — services field type:",
-          Array.isArray(rawList[0].services)
-            ? `array (len ${rawList[0].services.length})`
-            : typeof rawList[0].services,
-        );
-      } else {
-        console.log(
-          "🔍 [DEBUG] rawList is EMPTY — check whether `data` truly has no records, or the key used to hold them isn't `data`.",
-        );
-      }
-
-      const filtered = rawList.filter(
-        (g) => Array.isArray(g.services) && g.services.length > 0,
-      );
-
-      console.log(
-        `🔍 [DEBUG] hydrateGarages() -> ${rawList.length} raw, ${filtered.length} with active services`,
-      );
-
-      set({ garages: filtered, garageLoading: false });
-    } catch (e) {
-      console.log(
-        "🔍 [DEBUG] hydrateGarages() network/unexpected error:",
-        e?.message,
-      );
-      set({ garages: [], garageLoading: false });
     }
   },
 
   refreshGarages: async () => {
-    console.log("🔍 [DEBUG] refreshGarages() called — forcing refetch");
     set({ garages: [] }); // force hydrateGarages to actually refetch
     await get().hydrateGarages();
   },
